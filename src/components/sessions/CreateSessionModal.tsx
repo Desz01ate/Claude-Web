@@ -45,6 +45,8 @@ export function CreateSessionModal({
   // Use ref to track pending tmux name to avoid race conditions
   const pendingTmuxNameRef = useRef<string | null>(null);
   const listenerCleanupRef = useRef<(() => void) | null>(null);
+  // Store refs for suggestion items to enable scrolling
+  const suggestionItemRefs = useRef<(HTMLLIElement | null)[]>([]);
 
   // Fetch autocomplete suggestions
   const fetchSuggestions = useCallback(async (path: string) => {
@@ -82,6 +84,15 @@ export function CreateSessionModal({
       }
     };
   }, [directory, open, fetchSuggestions]);
+
+  // Scroll selected item into view
+  useEffect(() => {
+    if (selectedIndex >= 0 && suggestionItemRefs.current[selectedIndex]) {
+      suggestionItemRefs.current[selectedIndex]?.scrollIntoView({
+        block: 'nearest',
+      });
+    }
+  }, [selectedIndex]);
 
   // Reset state when modal opens/closes
   useEffect(() => {
@@ -301,10 +312,11 @@ export function CreateSessionModal({
                     {suggestions.map((suggestion, index) => (
                       <li
                         key={suggestion}
+                        ref={(el) => (suggestionItemRefs.current[index] = el)}
                         className={`px-3 py-2 text-sm cursor-pointer ${
                           index === selectedIndex
                             ? 'bg-accent text-accent-foreground'
-                            : 'hover:bg-accent hover:text-accent-foreground'
+                            : 'bg-popover hover:bg-accent hover:text-accent-foreground'
                         }`}
                         onMouseDown={() => handleSuggestionClick(suggestion)}
                         onMouseEnter={() => setSelectedIndex(index)}

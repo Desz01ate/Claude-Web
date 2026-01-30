@@ -6,8 +6,12 @@
     "dev": "concurrently \"npm run dev:server\" \"npm run dev:next\"",
     "dev:next": "next dev",
     "dev:server": "tsx watch server/index.ts",
-    "build": "next build && tsc -p server/tsconfig.json",
+    "build": "npm run build:next && npm run build:server",
+    "build:next": "next build",
+    "build:server": "tsc -p server/tsconfig.json",
+    "bundle": "node scripts/bundle.js",
     "start": "node server/dist/index.js & next start",
+    "start:prod": "node server/index.js",
     "lint": "next lint"
   },
   "dependencies": {
