@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import type { SetupStatus, AppConfig } from '@/types';
+import { useThemeStore, type ThemeMode } from '@/stores/themeStore';
 import {
   ArrowLeft,
   CheckCircle,
@@ -22,7 +23,53 @@ import {
   AlertTriangle,
   Settings2,
   Save,
+  Palette,
+  Sun,
+  Moon,
+  Monitor,
 } from 'lucide-react';
+
+// Theme option radio button component
+function ThemeOption({
+  value,
+  icon: Icon,
+  label,
+  description,
+}: {
+  value: ThemeMode;
+  icon: typeof Sun;
+  label: string;
+  description: string;
+}) {
+  const { theme, setTheme } = useThemeStore();
+  const isSelected = theme === value;
+
+  return (
+    <label
+      className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+        isSelected
+          ? 'bg-accent border-accent-foreground/20'
+          : 'hover:bg-accent/50 border-border'
+      }`}
+    >
+      <input
+        type="radio"
+        name="theme"
+        value={value}
+        checked={isSelected}
+        onChange={() => setTheme(value)}
+        className="mt-1 h-4 w-4"
+      />
+      <div className="flex items-start gap-3 flex-1">
+        <Icon className="h-5 w-5 mt-0.5" />
+        <div className="flex-1">
+          <div className="font-medium">{label}</div>
+          <div className="text-sm text-muted-foreground">{description}</div>
+        </div>
+      </div>
+    </label>
+  );
+}
 
 export default function SetupPage() {
   const [status, setStatus] = useState<SetupStatus | null>(null);
@@ -347,6 +394,41 @@ export default function SetupPage() {
                 </div>
               </>
             )}
+          </CardContent>
+        </Card>
+
+        {/* Theme Settings Card */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Palette className="h-5 w-5" />
+              <CardTitle>Theme</CardTitle>
+            </div>
+            <CardDescription>
+              Choose your preferred color theme for the application.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-3">
+              <ThemeOption
+                value="light"
+                icon={Sun}
+                label="Light"
+                description="Light theme with bright colors"
+              />
+              <ThemeOption
+                value="dark"
+                icon={Moon}
+                label="Dark"
+                description="Dark theme with reduced eye strain"
+              />
+              <ThemeOption
+                value="system"
+                icon={Monitor}
+                label="System"
+                description="Match your operating system preference"
+              />
+            </div>
           </CardContent>
         </Card>
 
