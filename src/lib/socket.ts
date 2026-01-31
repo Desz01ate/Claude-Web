@@ -117,3 +117,7 @@ export function deleteRecentSession(
 ): void {
   getSocket().emit('session:delete-recent', sessionId, callback);
 }
+
+export function cycleSessionMode(sessionId: string): void {
+  getSocket().emit('session:cycleMode', sessionId);
+}

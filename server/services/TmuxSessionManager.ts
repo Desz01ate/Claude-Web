@@ -18,6 +18,11 @@ export interface TmuxResult {
 export class TmuxSessionManager {
   private static SESSION_PREFIX = 'claude-web-';
 
+  static async sleep(ms: number) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+
   /**
    * Check if tmux is available on the system
    */
@@ -118,6 +123,14 @@ export class TmuxSessionManager {
       console.log(`[TmuxSessionManager] Sending claude command: ${claudeCommand}`);
       await execAsync(claudeCommand);
 
+      // In case the directory was never run Claude before, this will allow it to accept the warning regarding read/edit
+      // A few ms of delay is needed for claude's warning to show up.
+      await TmuxSessionManager.sleep(2000);
+      const enterCommand = `tmux send-keys -t "${tmuxName}" C-m`;
+      console.log(`[TmuxSessionManager] Sending enter command: ${enterCommand}`);
+      await exec(enterCommand);
+
+
       console.log(`[TmuxSessionManager] Created session: ${tmuxName}`);
       return { success: true, tmuxName };
     } catch (err) {
@@ -182,6 +195,30 @@ export class TmuxSessionManager {
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : String(err);
       console.error(`[TmuxSessionManager] Failed to send keys: ${errorMsg}`);
+      return { success: false, error: errorMsg };
+    }
+  }
+
+  /**
+   * Send a special key (like S-Tab, C-c, etc.) to a tmux session without literal flag
+   */
+  async sendSpecialKey(tmuxName: string, key: string): Promise<TmuxResult> {
+    // Security: validate session name format
+    if (!tmuxName.startsWith(TmuxSessionManager.SESSION_PREFIX)) {
+      return { success: false, error: 'Invalid session name format' };
+    }
+
+    try {
+      // Send key without -l flag so tmux interprets key names like S-Tab, C-c, etc.
+      const command = `tmux send-keys -t "${tmuxName}" ${key}`;
+      console.log(`[TmuxSessionManager] Sending special key to ${tmuxName}: ${key}`);
+
+      await execAsync(command);
+
+      return { success: true };
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      console.error(`[TmuxSessionManager] Failed to send special key: ${errorMsg}`);
       return { success: false, error: errorMsg };
     }
   }

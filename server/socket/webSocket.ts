@@ -312,6 +312,31 @@ export class WebSocketServer {
         }
       });
 
+      // Handle mode cycling (Shift+Tab)
+      socket.on('session:cycleMode', async (sessionId: string) => {
+        console.log(`[WebSocket] Mode cycle request for session ${sessionId}`);
+        const session = this.sessionStore.getSession(sessionId);
+
+        if (!session) {
+          socket.emit('session:cycleMode:result', sessionId, false, 'Session not found');
+          return;
+        }
+
+        if (!session.isManaged || !session.tmuxSessionName) {
+          socket.emit('session:cycleMode:result', sessionId, false, 'Mode cycling is only available for managed sessions');
+          return;
+        }
+
+        if (!this.tmuxManager) {
+          socket.emit('session:cycleMode:result', sessionId, false, 'Session manager not initialized');
+          return;
+        }
+
+        // Send Shift+Tab (BTab in tmux) to cycle through modes
+        const result = await this.tmuxManager.sendSpecialKey(session.tmuxSessionName, 'BTab');
+        socket.emit('session:cycleMode:result', sessionId, result.success, result.error);
+      });
+
       // Handle prompt sending
       socket.on('prompt:send', async (sessionId: string, prompt: string) => {
         console.log(`[WebSocket] Sending prompt to session ${sessionId}`);

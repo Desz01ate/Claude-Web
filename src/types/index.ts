@@ -94,6 +94,7 @@ export interface ServerToClientEvents {
   'sessions:list': (sessions: SessionState[]) => void;
   'sessions:recent': (sessions: RecentSession[]) => void;
   'prompt:sent': (sessionId: string, success: boolean, error?: string) => void;
+  'session:cycleMode:result': (sessionId: string, success: boolean, error?: string) => void;
   'tmux:available': (available: boolean) => void;
 }
 
@@ -118,6 +119,7 @@ export interface ClientToServerEvents {
   'session:destroy': (sessionId: string, keepTmux: boolean) => void;
   'session:resume': (sessionId: string, cwd: string, callback: (result: SessionResumeResult) => void) => void;
   'session:delete-recent': (sessionId: string, callback: (result: SessionDeleteResult) => void) => void;
+  'session:cycleMode': (sessionId: string) => void;
   'sessions:list': () => void;
   'sessions:recent': () => void;
   'prompt:send': (sessionId: string, prompt: string) => void;

@@ -13,10 +13,23 @@ import { AuthGuard } from '@/components/auth/AuthGuard';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, FolderOpen, Terminal, Globe, ExternalLink, AlertCircle, Square } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { ArrowLeft, FolderOpen, Terminal, Globe, ExternalLink, AlertCircle, Square, ToggleRight } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
 import { useSessionStore } from '@/stores/sessionStore';
-import { destroySession } from '@/lib/socket';
+import { destroySession, cycleSessionMode, getSocket } from '@/lib/socket';
+
+// Claude Code modes cycle: none -> acceptEdits -> planMode -> none
+type ClaudeMode = 'none' | 'acceptEdits' | 'planMode';
+const MODE_LABELS: Record<ClaudeMode, string> = {
+  none: 'Default',
+  acceptEdits: 'Accept Edits',
+  planMode: 'Plan Mode',
+};
+const MODE_COLORS: Record<ClaudeMode, string> = {
+  none: 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300',
+  acceptEdits: 'bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300',
+  planMode: 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300',
+};
 
 function SessionDetailPageContent() {
   const params = useParams();
@@ -29,6 +42,67 @@ function SessionDetailPageContent() {
 
   const [cleanupModalOpen, setCleanupModalOpen] = useState(false);
   const [isEnding, setIsEnding] = useState(false);
+  const [currentMode, setCurrentMode] = useState<ClaudeMode>('none');
+  const [isCyclingMode, setIsCyclingMode] = useState(false);
+
+  // Cycle to next mode
+  const getNextMode = useCallback((mode: ClaudeMode): ClaudeMode => {
+    switch (mode) {
+      case 'none': return 'acceptEdits';
+      case 'acceptEdits': return 'planMode';
+      case 'planMode': return 'none';
+    }
+  }, []);
+
+  // Handle mode cycling button click
+  const handleCycleMode = useCallback(() => {
+    if (!session?.sessionId || isCyclingMode) return;
+    setIsCyclingMode(true);
+    cycleSessionMode(session.sessionId);
+  }, [session?.sessionId, isCyclingMode]);
+
+  // Listen for mode cycle result
+  useEffect(() => {
+    const socket = getSocket();
+
+    const handleCycleModeResult = (resultSessionId: string, success: boolean, error?: string) => {
+      if (resultSessionId !== sessionId) return;
+
+      setIsCyclingMode(false);
+      if (success) {
+        setCurrentMode(prev => getNextMode(prev));
+      } else {
+        console.error('Mode cycle failed:', error);
+      }
+    };
+
+    socket.on('session:cycleMode:result', handleCycleModeResult);
+    return () => {
+      socket.off('session:cycleMode:result', handleCycleModeResult);
+    };
+  }, [sessionId, getNextMode]);
+
+  // Reset mode when session changes
+  useEffect(() => {
+    setCurrentMode('none');
+  }, [sessionId]);
+
+  // Keyboard shortcut: Shift+Tab to cycle mode (matching Claude Code behavior)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Only trigger for managed sessions that aren't ended
+      if (!session?.isManaged || session.phase.type === 'ended') return;
+
+      // Check for Shift+Tab
+      if (e.shiftKey && e.key === 'Tab') {
+        e.preventDefault();
+        handleCycleMode();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [session?.isManaged, session?.phase.type, handleCycleMode]);
 
   // Timeout for pending resume - if session doesn't appear within 30s, clear pending state
   useEffect(() => {
@@ -186,16 +260,37 @@ function SessionDetailPageContent() {
               </div>
 
               {session.isManaged && (
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={handleEndSession}
-                  disabled={isEnding}
-                  className="w-full gap-1 mt-2"
-                >
-                  <Square className="h-3 w-3 fill-current" />
-                  {isEnding ? 'Ending...' : 'End Session'}
-                </Button>
+                <div className="space-y-3 mt-2">
+                  {/* Mode Display */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Mode:</span>
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${MODE_COLORS[currentMode]}`}>
+                        {MODE_LABELS[currentMode]}
+                      </span>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleCycleMode}
+                      disabled={session.phase.type === 'ended' || isCyclingMode}
+                      className="w-full gap-1"
+                    >
+                      <ToggleRight className={`h-3 w-3 ${isCyclingMode ? 'animate-spin' : ''}`} />
+                      {isCyclingMode ? 'Switching...' : 'Cycle Mode (Shift+Tab)'}
+                    </Button>
+                  </div>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={handleEndSession}
+                    disabled={isEnding}
+                    className="w-full gap-1"
+                  >
+                    <Square className="h-3 w-3 fill-current" />
+                    {isEnding ? 'Ending...' : 'End Session'}
+                  </Button>
+                </div>
               )}
             </CardContent>
           </Card>
