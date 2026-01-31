@@ -7,6 +7,8 @@ services:
       - "3000"
       - "3001"
     volumes:
+      # Mount .claude-web directory for SQLite database persistence
+      - ./.claude-web:/home/appuser/.claude-web
       # Mount host's .claude directory for hook installation and conversation files
       - ${HOME}/.claude:/home/appuser/.claude
       # Mount Claude config file (contains onboarding/auth state)

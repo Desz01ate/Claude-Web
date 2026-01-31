@@ -21,9 +21,11 @@ fi
 
 # Create home directory structure (don't recursive chown mounted dirs)
 mkdir -p /home/appuser/.local/bin
+mkdir -p /home/appuser/.claude-web
 chown "$TARGET_UID:$TARGET_GID" /home/appuser
 chown "$TARGET_UID:$TARGET_GID" /home/appuser/.local 2>/dev/null || true
 chown "$TARGET_UID:$TARGET_GID" /home/appuser/.local/bin 2>/dev/null || true
+chown "$TARGET_UID:$TARGET_GID" /home/appuser/.claude-web 2>/dev/null || true
 
 # Create symlink for host user's home directory if HOST_USER is set
 if [ -n "$HOST_USER" ] && [ "$HOST_USER" != "appuser" ]; then
