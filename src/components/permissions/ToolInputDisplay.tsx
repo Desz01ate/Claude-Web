@@ -8,10 +8,6 @@ interface ToolInputDisplayProps {
 export function ToolInputDisplay({ input, toolName }: ToolInputDisplayProps) {
   const formatValue = (value: unknown): string => {
     if (typeof value === 'string') {
-      // Truncate long strings
-      if (value.length > 500) {
-        return value.slice(0, 500) + '...';
-      }
       return value;
     }
     return JSON.stringify(value, null, 2);
@@ -25,7 +21,7 @@ export function ToolInputDisplay({ input, toolName }: ToolInputDisplayProps) {
     return (
       <div className="space-y-2">
         <div className="text-sm font-medium text-muted-foreground">Command:</div>
-        <pre className="bg-muted p-3 rounded-md text-sm overflow-x-auto font-mono">
+        <pre className="bg-muted p-3 rounded-md text-sm overflow-auto font-mono">
           {formatValue(input.command)}
         </pre>
         {hasDescription ? (
@@ -44,7 +40,7 @@ export function ToolInputDisplay({ input, toolName }: ToolInputDisplayProps) {
     return (
       <div className="space-y-2">
         <div className="text-sm font-medium text-muted-foreground">File:</div>
-        <pre className="bg-muted p-3 rounded-md text-sm overflow-x-auto font-mono">
+        <pre className="bg-muted p-3 rounded-md text-sm overflow-auto font-mono">
           {formatValue(input.file_path)}
         </pre>
         {hasContent ? (
@@ -52,7 +48,7 @@ export function ToolInputDisplay({ input, toolName }: ToolInputDisplayProps) {
             <div className="text-sm font-medium text-muted-foreground">
               Content:
             </div>
-            <pre className="bg-muted p-3 rounded-md text-sm overflow-x-auto max-h-64">
+            <pre className="bg-muted p-3 rounded-md text-sm overflow-auto max-h-64">
               {formatValue(input.content)}
             </pre>
           </>
@@ -63,7 +59,7 @@ export function ToolInputDisplay({ input, toolName }: ToolInputDisplayProps) {
 
   // Generic display
   return (
-    <pre className="bg-muted p-3 rounded-md text-sm overflow-x-auto max-h-96">
+    <pre className="bg-muted p-3 rounded-md text-sm overflow-auto max-h-96">
       {JSON.stringify(input, null, 2)}
     </pre>
   );

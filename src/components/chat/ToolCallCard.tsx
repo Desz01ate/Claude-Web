@@ -75,24 +75,28 @@ export function ToolCallCard({ toolCall, toolResult }: ToolCallCardProps) {
 
       {expanded && (
         <CardContent className="space-y-4 pt-0">
-          <div>
-            <Badge variant="outline" className="mb-2">
-              Input
-            </Badge>
-            {toolName === 'Edit' && isEditInput(content.input) ? (
-              <DiffView
-                oldString={content.input.old_string as string}
-                newString={content.input.new_string as string}
-                filePath={content.input.file_path as string}
-              />
-            ) : (
-              <pre className="bg-muted p-3 rounded-md text-xs overflow-x-auto">
-                {formatInput(content.input)}
-              </pre>
-            )}
-          </div>
+          {/* Skip showing input for AskUserQuestion - it's handled by QuestionCard */}
+          {toolName !== 'AskUserQuestion' && (
+            <div>
+              <Badge variant="outline" className="mb-2">
+                Input
+              </Badge>
+              {toolName === 'Edit' && isEditInput(content.input) ? (
+                <DiffView
+                  oldString={content.input.old_string as string}
+                  newString={content.input.new_string as string}
+                  filePath={content.input.file_path as string}
+                />
+              ) : (
+                <pre className="bg-muted p-3 rounded-md text-xs overflow-x-auto">
+                  {formatInput(content.input)}
+                </pre>
+              )}
+            </div>
+          )}
 
-          {result && (
+          {/* Skip showing result for AskUserQuestion - it's handled by QuestionCard */}
+          {result && toolName !== 'AskUserQuestion' && (
             <div>
               <Badge
                 variant={hasError ? 'destructive' : 'outline'}

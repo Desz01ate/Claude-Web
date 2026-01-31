@@ -41,6 +41,7 @@ export interface PermissionRequestContent {
   toolName: string;
   toolInput?: Record<string, unknown>;
   status: 'pending' | 'allowed' | 'denied' | 'asked' | 'answered';
+  answers?: Record<string, string>;  // For AskUserQuestion - the user's answers
 }
 
 // AskUserQuestion tool types

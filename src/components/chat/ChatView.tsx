@@ -4,6 +4,7 @@ import { useRef, useEffect } from 'react';
 import { ChatMessage } from './ChatMessage';
 import { ToolCallCard } from './ToolCallCard';
 import { PermissionRequestCard } from './PermissionRequestCard';
+import { QuestionCard } from './QuestionCard';
 import { usePermissionStore } from '@/stores/permissionStore';
 import type { ChatHistoryItem, ToolCallContent, ToolResultContent, PermissionRequestContent } from '@/types';
 
@@ -86,6 +87,33 @@ export function ChatView({ messages, sessionId }: ChatViewProps) {
       <div className="space-y-4 p-4">
         {groupedMessages.map((item, index) => {
           if ('toolCall' in item) {
+            const toolContent = item.toolCall.content as ToolCallContent;
+            // Render AskUserQuestion as QuestionCard with answered state
+            if (toolContent.toolName === 'AskUserQuestion') {
+              // Parse answers from tool result if available
+              let answers: Record<string, string> | undefined;
+              if (item.toolResult) {
+                const resultContent = item.toolResult.content as ToolResultContent;
+                try {
+                  answers = JSON.parse(resultContent.content);
+                } catch {
+                  // If parsing fails, leave answers undefined
+                }
+              }
+              return (
+                <QuestionCard
+                  key={item.toolCall.id}
+                  sessionId={sessionId}
+                  content={{
+                    toolUseId: toolContent.toolUseId,
+                    toolName: toolContent.toolName,
+                    toolInput: toolContent.input,
+                    status: item.toolResult ? 'answered' : 'pending',
+                    answers,
+                  }}
+                />
+              );
+            }
             return (
               <ToolCallCard
                 key={item.toolCall.id}
@@ -107,19 +135,38 @@ export function ChatView({ messages, sessionId }: ChatViewProps) {
           return <ChatMessage key={item.id || index} item={item} />;
         })}
 
-        {/* Render pending permissions from the permission store */}
-        {pendingPermissions.map((permission) => (
-          <PermissionRequestCard
-            key={`pending-${permission.toolUseId}`}
-            sessionId={sessionId}
-            content={{
-              toolUseId: permission.toolUseId,
-              toolName: permission.toolName,
-              toolInput: permission.toolInput,
-              status: 'pending',
-            }}
-          />
-        ))}
+        {/* Render pending/answered permissions from the permission store */}
+        {/* Skip if already shown in history */}
+        {pendingPermissions
+          .filter((permission) => {
+            // Check if this permission already exists in history
+            const hasInHistory = groupedMessages.some((item) => {
+              if ('toolCall' in item) {
+                const content = item.toolCall.content as ToolCallContent;
+                // For AskUserQuestion, exclude if there's any matching toolCall (we render it directly)
+                // For other tools, only exclude if there's a toolResult (completed)
+                if (permission.toolName === 'AskUserQuestion') {
+                  return content.toolUseId === permission.toolUseId;
+                }
+                return content.toolUseId === permission.toolUseId && item.toolResult;
+              }
+              return false;
+            });
+            return !hasInHistory;
+          })
+          .map((permission) => (
+            <PermissionRequestCard
+              key={`pending-${permission.toolUseId}`}
+              sessionId={sessionId}
+              content={{
+                toolUseId: permission.toolUseId,
+                toolName: permission.toolName,
+                toolInput: permission.toolInput,
+                status: permission.status === 'answered' ? 'answered' : 'pending',
+                answers: permission.answers,
+              }}
+            />
+          ))}
       </div>
     </div>
   );

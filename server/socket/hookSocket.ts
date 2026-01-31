@@ -287,6 +287,30 @@ export class HookSocketServer {
             // Press Enter to toggle this option's selection
             await this.tmuxManager.sendSpecialKey(tmuxName, 'Enter');
             await this.sleep(100);
+          } else {
+            // Custom text - navigate to "Other" option (last position after all predefined options)
+            const otherIndex = question.options.length;
+            const stepsNeeded = otherIndex - currentPosition;
+            console.log(`[HookSocket] Navigating ${stepsNeeded} steps to 'Other' option for custom text in question ${i + 1}`);
+
+            if (stepsNeeded > 0) {
+              for (let j = 0; j < stepsNeeded; j++) {
+                await this.tmuxManager.sendSpecialKey(tmuxName, 'Down');
+                await this.sleep(50);
+              }
+            } else if (stepsNeeded < 0) {
+              for (let j = 0; j < Math.abs(stepsNeeded); j++) {
+                await this.tmuxManager.sendSpecialKey(tmuxName, 'Up');
+                await this.sleep(50);
+              }
+            }
+
+            currentPosition = otherIndex;
+
+            // Type the custom text directly (sendKeys auto-presses Enter)
+            console.log(`[HookSocket] Typing custom text: "${label}" for question ${i + 1}`);
+            await this.tmuxManager.sendKeys(tmuxName, label);
+            await this.sleep(100);
           }
         }
         // Press Right arrow to move to the next question
@@ -306,6 +330,17 @@ export class HookSocketServer {
           // Press Enter to confirm selection
           console.log(`[HookSocket] Sending Enter to confirm selection for question ${i + 1}`);
           await this.tmuxManager.sendSpecialKey(tmuxName, 'Enter');
+        } else {
+          // Custom text - navigate to "Other" option (last position after all predefined options)
+          const otherIndex = question.options.length;
+          console.log(`[HookSocket] Navigating to 'Other' option (index ${otherIndex}) for custom text in question ${i + 1}`);
+          for (let j = 0; j < otherIndex; j++) {
+            await this.tmuxManager.sendSpecialKey(tmuxName, 'Down');
+            await this.sleep(50);
+          }
+          // Type the custom text directly (sendKeys auto-presses Enter)
+          console.log(`[HookSocket] Typing custom text: "${answerText}" for question ${i + 1}`);
+          await this.tmuxManager.sendKeys(tmuxName, answerText);
         }
       }
 
