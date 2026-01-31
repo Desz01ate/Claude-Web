@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { ChatHistoryItem, ToolCallContent, ToolResultContent } from '@/types';
 import { ChevronDown, ChevronUp, Wrench, CheckCircle, XCircle } from 'lucide-react';
+import { DiffView } from './DiffView';
 
 interface ToolCallCardProps {
   toolCall: ChatHistoryItem;
@@ -28,6 +29,14 @@ export function ToolCallCard({ toolCall, toolResult }: ToolCallCardProps) {
     } catch {
       return String(input);
     }
+  };
+
+  const isEditInput = (input: Record<string, unknown>): boolean => {
+    return (
+      typeof input.old_string === 'string' &&
+      typeof input.new_string === 'string' &&
+      typeof input.file_path === 'string'
+    );
   };
 
   const truncateContent = (str: string, maxLen: number = 200) => {
@@ -70,9 +79,17 @@ export function ToolCallCard({ toolCall, toolResult }: ToolCallCardProps) {
             <Badge variant="outline" className="mb-2">
               Input
             </Badge>
-            <pre className="bg-muted p-3 rounded-md text-xs overflow-x-auto">
-              {formatInput(content.input)}
-            </pre>
+            {toolName === 'Edit' && isEditInput(content.input) ? (
+              <DiffView
+                oldString={content.input.old_string as string}
+                newString={content.input.new_string as string}
+                filePath={content.input.file_path as string}
+              />
+            ) : (
+              <pre className="bg-muted p-3 rounded-md text-xs overflow-x-auto">
+                {formatInput(content.input)}
+              </pre>
+            )}
           </div>
 
           {result && (
