@@ -44,6 +44,13 @@ export class AuthService {
   }
 
   /**
+   * Check if the user is locked out
+   */
+  isLockedOut(): boolean {
+    return this.configStore.isLockedOut();
+  }
+
+  /**
    * Verify a password and return a token if valid
    */
   async login(password: string): Promise<{ success: boolean; token?: string; error?: string }> {
@@ -51,10 +58,34 @@ export class AuthService {
       return { success: false, error: 'Authentication is not enabled' };
     }
 
+    // Check if user is locked out
+    if (this.configStore.isLockedOut()) {
+      return {
+        success: false,
+        error: 'Account locked. Remove "lockedOut" from config.json to unlock.'
+      };
+    }
+
     const isValid = await this.configStore.verifyPassword(password);
     if (!isValid) {
-      return { success: false, error: 'Invalid password' };
+      const isNowLocked = this.configStore.incrementFailedAttempts();
+      const attempts = this.configStore.getFailedLoginAttempts();
+
+      if (isNowLocked) {
+        return {
+          success: false,
+          error: 'Account locked after 3 failed attempts. Remove "lockedOut" from config.json to unlock.'
+        };
+      }
+
+      return {
+        success: false,
+        error: `Invalid password. ${3 - attempts} attempt(s) remaining before lockout.`
+      };
     }
+
+    // Reset failed attempts on successful login
+    this.configStore.resetFailedAttempts();
 
     const token = this.generateToken();
     return { success: true, token };

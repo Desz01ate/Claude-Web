@@ -156,6 +156,8 @@ export interface AppConfig {
   maxConcurrentSessions: number;  // Default: 5
   defaultWorkingDirectory?: string;
   passwordHash?: string;
+  failedLoginAttempts?: number;   // Number of consecutive failed login attempts
+  lockedOut?: boolean;            // True if user is locked out after too many failed attempts
 }
 
 // Recent session from database (for resume feature)

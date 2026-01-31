@@ -8,9 +8,11 @@ const isBrowser = typeof window !== 'undefined';
 interface AuthState {
   isAuthenticated: boolean;
   isAuthRequired: boolean | null; // null = not checked yet
+  isLockedOut: boolean; // true if account is locked
   token: string | null;
   error: string | null;
   setAuthRequired: (required: boolean) => void;
+  setLockedOut: (locked: boolean) => void;
   setToken: (token: string) => void;
   login: (password: string) => Promise<boolean>;
   logout: () => void;
@@ -22,11 +24,16 @@ export const useAuthStore = create<AuthState>()(
     (set, get) => ({
       isAuthenticated: false,
       isAuthRequired: null,
+      isLockedOut: false,
       token: null,
       error: null,
 
       setAuthRequired: (required: boolean) => {
         set({ isAuthRequired: required });
+      },
+
+      setLockedOut: (locked: boolean) => {
+        set({ isLockedOut: locked });
       },
 
       setToken: (token: string) => {

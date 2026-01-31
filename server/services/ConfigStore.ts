@@ -7,6 +7,8 @@ const DEFAULT_CONFIG: AppConfig = {
   maxConcurrentSessions: 5,
   defaultWorkingDirectory: undefined,
   passwordHash: undefined,
+  failedLoginAttempts: 0,
+  lockedOut: false,
 };
 
 export class ConfigStore {
@@ -162,5 +164,44 @@ export class ConfigStore {
    */
   getPasswordHash(): string | undefined {
     return this.config.passwordHash;
+  }
+
+  /**
+   * Check if the user is locked out
+   */
+  isLockedOut(): boolean {
+    return !!this.config.lockedOut;
+  }
+
+  /**
+   * Get the number of failed login attempts
+   */
+  getFailedLoginAttempts(): number {
+    return this.config.failedLoginAttempts ?? 0;
+  }
+
+  /**
+   * Increment failed login attempts and lock out if threshold reached
+   * Returns true if now locked out
+   */
+  incrementFailedAttempts(): boolean {
+    const attempts = (this.config.failedLoginAttempts ?? 0) + 1;
+    this.config.failedLoginAttempts = attempts;
+
+    if (attempts >= 3) {
+      this.config.lockedOut = true;
+      console.log('[ConfigStore] User locked out after 3 failed login attempts');
+    }
+
+    this.save();
+    return !!this.config.lockedOut;
+  }
+
+  /**
+   * Reset failed login attempts (called on successful login)
+   */
+  resetFailedAttempts(): void {
+    this.config.failedLoginAttempts = 0;
+    this.save();
   }
 }

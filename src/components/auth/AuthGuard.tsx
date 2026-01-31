@@ -10,7 +10,7 @@ interface AuthGuardProps {
 
 export function AuthGuard({ children }: AuthGuardProps) {
   const router = useRouter();
-  const { isAuthRequired, isAuthenticated, setAuthRequired } = useAuthStore();
+  const { isAuthRequired, isAuthenticated, setAuthRequired, setLockedOut } = useAuthStore();
   const [isLoading, setIsLoading] = useState(true);
   const [statusChecked, setStatusChecked] = useState(false);
 
@@ -22,6 +22,7 @@ export function AuthGuard({ children }: AuthGuardProps) {
         if (res.ok) {
           const data = await res.json();
           setAuthRequired(data.enabled);
+          setLockedOut(data.lockedOut ?? false);
         }
       } catch (err) {
         console.error('Failed to check auth status:', err);
@@ -32,7 +33,7 @@ export function AuthGuard({ children }: AuthGuardProps) {
     };
 
     checkAuthStatus();
-  }, [setAuthRequired]);
+  }, [setAuthRequired, setLockedOut]);
 
   useEffect(() => {
     // Redirect to login if auth is required and user is not authenticated

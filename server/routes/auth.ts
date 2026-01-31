@@ -6,12 +6,13 @@ export function setupAuthRoutes(app: Express, authService: AuthService): void {
 
   /**
    * GET /api/auth/status
-   * Get authentication status (enabled/disabled)
+   * Get authentication status (enabled/disabled/locked)
    */
   router.get('/auth/status', (req, res) => {
     try {
       const enabled = authService.isAuthEnabled();
-      res.json({ enabled });
+      const lockedOut = authService.isLockedOut();
+      res.json({ enabled, lockedOut });
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : String(err);
       res.status(500).json({ error: errorMsg });

@@ -5,14 +5,30 @@ import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/stores/authStore';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Lock, AlertCircle } from 'lucide-react';
+import { Lock, AlertCircle, ShieldX } from 'lucide-react';
 
 export default function LoginPage() {
   const router = useRouter();
-  const { login, isAuthenticated, error, clearError } = useAuthStore();
+  const { login, isAuthenticated, isLockedOut, setLockedOut, error, clearError } = useAuthStore();
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
+
+  // Check locked status on mount
+  useEffect(() => {
+    const checkLockStatus = async () => {
+      try {
+        const res = await fetch('/api/auth/status');
+        if (res.ok) {
+          const data = await res.json();
+          setLockedOut(data.lockedOut ?? false);
+        }
+      } catch (err) {
+        console.error('Failed to check lock status:', err);
+      }
+    };
+    checkLockStatus();
+  }, [setLockedOut]);
 
   // Redirect if already authenticated
   useEffect(() => {
@@ -40,6 +56,38 @@ export default function LoginPage() {
     }
     // If not successful, error is already set in the store
   };
+
+  // Show locked out state
+  if (isLockedOut) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/30">
+              <ShieldX className="h-6 w-6 text-red-500" />
+            </div>
+            <CardTitle className="text-red-500">Account Locked</CardTitle>
+            <CardDescription>
+              Too many failed login attempts
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="text-sm text-muted-foreground space-y-3">
+              <p>
+                This account has been locked after 3 failed login attempts.
+              </p>
+              <p>
+                To unlock, manually edit <code className="bg-muted px-1 py-0.5 rounded text-xs">~/.claude-web/config.json</code> and remove the <code className="bg-muted px-1 py-0.5 rounded text-xs">&quot;lockedOut&quot;: true</code> line.
+              </p>
+              <p className="text-xs text-muted-foreground/70">
+                After removing the lockout flag, refresh this page to try again.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background">
