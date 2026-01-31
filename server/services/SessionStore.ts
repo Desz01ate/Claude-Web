@@ -19,6 +19,8 @@ export class SessionStore extends EventEmitter {
   // Pending managed sessions waiting for hook event correlation
   // Key: working directory, Value: { tmuxName, createdAt }
   private pendingManagedSessions: Map<string, { tmuxName: string; createdAt: Date }> = new Map();
+  // Track which sessions have been persisted to the database (have messages)
+  private persistedSessions: Set<string> = new Set();
 
   constructor(db: SessionDatabase) {
     super();
@@ -152,14 +154,7 @@ export class SessionStore extends EventEmitter {
       };
       this.sessions.set(session_id, session);
 
-      // Save to database
-      this.db.saveSession({
-        sessionId: session_id,
-        cwd: cwd,
-        projectName: session.projectName,
-        conversationPath: session.conversationPath,
-        lastActivity: session.lastActivity,
-      });
+      // Note: Session is NOT saved to database yet - will be saved on first message
 
       // Emit session:created for managed sessions
       if (pendingTmuxName) {
@@ -216,8 +211,12 @@ export class SessionStore extends EventEmitter {
       case 'session_end':
       case 'ended':
         session.phase = { type: 'ended' };
-        // Mark session as ended in database
-        this.db.markSessionEnded(session_id);
+        // Mark session as ended in database (only if persisted)
+        if (this.persistedSessions.has(session_id)) {
+          this.db.markSessionEnded(session_id);
+        }
+        // Clean up tracking for memory management
+        this.persistedSessions.delete(session_id);
         // For managed sessions, emit cleanup prompt
         if (session.isManaged && session.tmuxSessionName) {
           this.emit('session:cleanup-prompt', session_id);
@@ -228,8 +227,10 @@ export class SessionStore extends EventEmitter {
 
     this.sessions.set(session_id, session);
 
-    // Update activity timestamp in database
-    this.db.updateSessionActivity(session_id, session.lastActivity);
+    // Update activity timestamp in database (only if persisted)
+    if (this.persistedSessions.has(session_id)) {
+      this.db.updateSessionActivity(session_id, session.lastActivity);
+    }
 
     this.emit('session:update', session);
 
@@ -260,20 +261,39 @@ export class SessionStore extends EventEmitter {
       console.log(`[SessionStore] Parsing conversation from: ${path}`);
       const messages = await this.conversationParser.parse(path);
       console.log(`[SessionStore] Parsed ${messages.length} messages for session ${sessionId}`);
+
+      // Save session to database on first message (lazy persistence)
+      if (messages.length > 0 && !this.persistedSessions.has(sessionId)) {
+        const session = this.sessions.get(sessionId);
+        if (session) {
+          this.db.saveSession({
+            sessionId: session.sessionId,
+            cwd: session.cwd,
+            projectName: session.projectName,
+            conversationPath: session.conversationPath,
+            lastActivity: session.lastActivity,
+          });
+          this.persistedSessions.add(sessionId);
+          console.log(`[SessionStore] Persisted session ${sessionId} to database (first message)`);
+        }
+      }
+
       if (messages.length > 0) {
         this.emit('chat:update', sessionId, messages);
 
-        // Update message preview in database
-        const userMessages = messages.filter(m => m.type === 'user');
-        const lastUserMessage = userMessages.length > 0
-          ? (typeof userMessages[userMessages.length - 1].content === 'string'
-              ? userMessages[userMessages.length - 1].content as string
-              : undefined)
-          : undefined;
+        // Update message preview in database (only if persisted)
+        if (this.persistedSessions.has(sessionId)) {
+          const userMessages = messages.filter(m => m.type === 'user');
+          const lastUserMessage = userMessages.length > 0
+            ? (typeof userMessages[userMessages.length - 1].content === 'string'
+                ? userMessages[userMessages.length - 1].content as string
+                : undefined)
+            : undefined;
 
-        // Truncate message preview for storage
-        const truncatedMessage = lastUserMessage?.slice(0, 200);
-        this.db.updateMessagePreview(sessionId, messages.length, truncatedMessage);
+          // Truncate message preview for storage
+          const truncatedMessage = lastUserMessage?.slice(0, 200);
+          this.db.updateMessagePreview(sessionId, messages.length, truncatedMessage);
+        }
       }
     } catch (err) {
       console.error(`[SessionStore] Error parsing conversation: ${err}`);

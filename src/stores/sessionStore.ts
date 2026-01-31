@@ -1,6 +1,9 @@
 import { create } from 'zustand';
 import type { SessionState, ChatHistoryItem, RecentSession } from '@/types';
 
+// Claude Code modes cycle: none -> acceptEdits -> planMode -> none
+export type ClaudeMode = 'none' | 'acceptEdits' | 'planMode';
+
 interface SessionStore {
   sessions: Map<string, SessionState>;
   activeSessionId: string | null;
@@ -9,6 +12,7 @@ interface SessionStore {
   recentSessions: RecentSession[];
   sessionsLoaded: boolean; // Whether initial sessions list has been received
   pendingResumeSessions: Set<string>; // Session IDs being resumed, waiting to appear
+  sessionModes: Map<string, ClaudeMode>; // Track Claude mode per session
 
   // Actions
   setSessions: (sessions: SessionState[]) => void;
@@ -25,6 +29,8 @@ interface SessionStore {
   addPendingResumeSession: (sessionId: string) => void;
   removePendingResumeSession: (sessionId: string) => void;
   isPendingResume: (sessionId: string) => boolean;
+  setSessionMode: (sessionId: string, mode: ClaudeMode) => void;
+  cycleSessionMode: (sessionId: string) => void;
 
   // Getters
   getSession: (sessionId: string) => SessionState | undefined;
@@ -33,7 +39,17 @@ interface SessionStore {
   getChatHistory: (sessionId: string) => ChatHistoryItem[];
   getRecentSessions: () => RecentSession[];
   isSessionsLoaded: () => boolean;
+  getSessionMode: (sessionId: string) => ClaudeMode;
 }
+
+// Helper to get next mode in cycle
+const getNextMode = (mode: ClaudeMode): ClaudeMode => {
+  switch (mode) {
+    case 'none': return 'acceptEdits';
+    case 'acceptEdits': return 'planMode';
+    case 'planMode': return 'none';
+  }
+};
 
 export const useSessionStore = create<SessionStore>((set, get) => ({
   sessions: new Map(),
@@ -43,6 +59,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
   recentSessions: [],
   sessionsLoaded: false,
   pendingResumeSessions: new Set(),
+  sessionModes: new Map(),
 
   setSessions: (sessions) => {
     const map = new Map<string, SessionState>();
@@ -67,9 +84,12 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       newSessions.delete(sessionId);
       const newChatHistory = new Map(state.chatHistory);
       newChatHistory.delete(sessionId);
+      const newSessionModes = new Map(state.sessionModes);
+      newSessionModes.delete(sessionId);
       return {
         sessions: newSessions,
         chatHistory: newChatHistory,
+        sessionModes: newSessionModes,
         activeSessionId:
           state.activeSessionId === sessionId ? null : state.activeSessionId,
       };
@@ -168,6 +188,23 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
     return get().pendingResumeSessions.has(sessionId);
   },
 
+  setSessionMode: (sessionId, mode) => {
+    set((state) => {
+      const newSessionModes = new Map(state.sessionModes);
+      newSessionModes.set(sessionId, mode);
+      return { sessionModes: newSessionModes };
+    });
+  },
+
+  cycleSessionMode: (sessionId) => {
+    set((state) => {
+      const newSessionModes = new Map(state.sessionModes);
+      const currentMode = newSessionModes.get(sessionId) || 'none';
+      newSessionModes.set(sessionId, getNextMode(currentMode));
+      return { sessionModes: newSessionModes };
+    });
+  },
+
   getSession: (sessionId) => {
     return get().sessions.get(sessionId);
   },
@@ -192,5 +229,9 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
 
   isSessionsLoaded: () => {
     return get().sessionsLoaded;
+  },
+
+  getSessionMode: (sessionId) => {
+    return get().sessionModes.get(sessionId) || 'none';
   },
 }));

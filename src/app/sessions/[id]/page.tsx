@@ -15,11 +15,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, FolderOpen, Terminal, Globe, ExternalLink, AlertCircle, Square, ToggleRight } from 'lucide-react';
 import { useState, useEffect, useCallback } from 'react';
-import { useSessionStore } from '@/stores/sessionStore';
-import { destroySession, cycleSessionMode, getSocket } from '@/lib/socket';
+import { useSessionStore, type ClaudeMode } from '@/stores/sessionStore';
+import { destroySession, cycleSessionMode as emitCycleMode, getSocket } from '@/lib/socket';
 
-// Claude Code modes cycle: none -> acceptEdits -> planMode -> none
-type ClaudeMode = 'none' | 'acceptEdits' | 'planMode';
 const MODE_LABELS: Record<ClaudeMode, string> = {
   none: 'Default',
   acceptEdits: 'Accept Edits',
@@ -38,27 +36,26 @@ function SessionDetailPageContent() {
 
   useWebSocket();
   const { session, chatHistory, sessionsLoaded, isPendingResume } = useSession(sessionId);
-  const { cleanupQueue, removeFromCleanupQueue, removePendingResumeSession } = useSessionStore();
+  const {
+    cleanupQueue,
+    removeFromCleanupQueue,
+    removePendingResumeSession,
+    getSessionMode,
+    cycleSessionMode: cycleStoredMode,
+  } = useSessionStore();
 
   const [cleanupModalOpen, setCleanupModalOpen] = useState(false);
   const [isEnding, setIsEnding] = useState(false);
-  const [currentMode, setCurrentMode] = useState<ClaudeMode>('none');
   const [isCyclingMode, setIsCyclingMode] = useState(false);
 
-  // Cycle to next mode
-  const getNextMode = useCallback((mode: ClaudeMode): ClaudeMode => {
-    switch (mode) {
-      case 'none': return 'acceptEdits';
-      case 'acceptEdits': return 'planMode';
-      case 'planMode': return 'none';
-    }
-  }, []);
+  // Get current mode from store
+  const currentMode = getSessionMode(sessionId);
 
   // Handle mode cycling button click
   const handleCycleMode = useCallback(() => {
     if (!session?.sessionId || isCyclingMode) return;
     setIsCyclingMode(true);
-    cycleSessionMode(session.sessionId);
+    emitCycleMode(session.sessionId);
   }, [session?.sessionId, isCyclingMode]);
 
   // Listen for mode cycle result
@@ -70,7 +67,7 @@ function SessionDetailPageContent() {
 
       setIsCyclingMode(false);
       if (success) {
-        setCurrentMode(prev => getNextMode(prev));
+        cycleStoredMode(sessionId);
       } else {
         console.error('Mode cycle failed:', error);
       }
@@ -80,12 +77,7 @@ function SessionDetailPageContent() {
     return () => {
       socket.off('session:cycleMode:result', handleCycleModeResult);
     };
-  }, [sessionId, getNextMode]);
-
-  // Reset mode when session changes
-  useEffect(() => {
-    setCurrentMode('none');
-  }, [sessionId]);
+  }, [sessionId, cycleStoredMode]);
 
   // Keyboard shortcut: Shift+Tab to cycle mode (matching Claude Code behavior)
   useEffect(() => {
