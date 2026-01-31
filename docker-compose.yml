@@ -2,9 +2,10 @@ services:
   claude-web:
     build: .
     container_name: claude-web
-    ports:
-      - "3000:3000"  # Next.js frontend
-      - "3001:3001"  # Express backend
+    # Ports only exposed internally to nginx, not to host
+    expose:
+      - "3000"
+      - "3001"
     volumes:
       # Mount host's .claude directory for hook installation and conversation files
       - ${HOME}/.claude:/home/appuser/.claude
@@ -29,4 +30,15 @@ services:
     # Enable interactive terminal for Claude sessions
     stdin_open: true
     tty: true
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:alpine
+    container_name: claude-web-nginx
+    ports:
+      - "8080:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - claude-web
     restart: unless-stopped

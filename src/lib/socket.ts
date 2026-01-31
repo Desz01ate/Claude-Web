@@ -15,11 +15,18 @@ let socket: TypedSocket | null = null;
 function getSocketUrl(): string {
   if (typeof window === 'undefined') return 'http://localhost:3001';
 
-  // Use environment variable if set, otherwise derive from current location
+  // Use environment variable if set
   const envUrl = process.env.NEXT_PUBLIC_SOCKET_URL;
   if (envUrl) return envUrl;
 
-  // Use same host as the page, but on port 3001
+  // When behind a reverse proxy (nginx), use same origin
+  // For local dev without proxy, specify port 3001 explicitly
+  if (process.env.NODE_ENV === 'production') {
+    // In production, assume reverse proxy - use same origin
+    return window.location.origin;
+  }
+
+  // Development: use same host but port 3001
   const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:';
   return `${protocol}//${window.location.hostname}:3001`;
 }
