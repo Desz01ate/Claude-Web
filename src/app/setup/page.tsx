@@ -30,6 +30,7 @@ import {
   Monitor,
   Lock,
   Key,
+  Zap,
 } from 'lucide-react';
 
 // Theme option radio button component
@@ -614,6 +615,32 @@ function SetupPageContent() {
                 )}
               </>
             )}
+          </CardContent>
+        </Card>
+
+        {/* MCP Servers Card */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Zap className="h-5 w-5" />
+                <CardTitle>MCP Servers</CardTitle>
+              </div>
+              <Link href="/mcp">
+                <Button variant="outline" size="sm">
+                  Manage
+                </Button>
+              </Link>
+            </div>
+            <CardDescription>
+              Configure Model Context Protocol servers to extend Claude capabilities.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground">
+              Add MCP servers to provide Claude with additional tools and resources.
+              MCP servers run as separate processes and communicate via stdio or SSE.
+            </p>
           </CardContent>
         </Card>
 

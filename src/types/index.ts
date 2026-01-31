@@ -182,3 +182,20 @@ export interface SessionResumeResult {
   session?: SessionState;
   error?: string;
 }
+
+// MCP (Model Context Protocol) server configuration
+export interface MCPServer {
+  type: 'stdio' | 'sse';
+  command: string;
+  args: string[];
+  env: Record<string, string>;
+}
+
+export interface MCPServersResponse {
+  mcpServers: Record<string, MCPServer>;
+}
+
+export interface MCPServerWithMeta extends MCPServer {
+  name: string;
+  isActive?: boolean;
+}

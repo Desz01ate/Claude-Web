@@ -8,11 +8,13 @@ import { SessionDatabase } from './services/SessionDatabase';
 import { TmuxSessionManager } from './services/TmuxSessionManager';
 import { ConfigStore } from './services/ConfigStore';
 import { AuthService } from './services/AuthService';
+import { MCPStore } from './services/MCPStore';
 import { setupRoutes } from './routes/sessions';
 import { setupSetupRoutes } from './routes/setup';
 import { setupFilesystemRoutes } from './routes/filesystem';
 import { setupConfigRoutes } from './routes/config';
 import { setupAuthRoutes } from './routes/auth';
+import { setupMCPRoutes } from './routes/mcp';
 import type { ServerToClientEvents, ClientToServerEvents } from '../src/types';
 
 const app = express();
@@ -41,6 +43,9 @@ const configStore = new ConfigStore();
 
 // Authentication service
 const authService = new AuthService(configStore);
+
+// MCP store for Claude server configuration
+const mcpStore = new MCPStore();
 
 // Tmux session manager
 const tmuxManager = new TmuxSessionManager();
@@ -71,6 +76,7 @@ setupSetupRoutes(app);
 setupFilesystemRoutes(app);
 setupConfigRoutes(app, configStore);
 setupAuthRoutes(app, authService);
+setupMCPRoutes(app, mcpStore);
 
 // Start servers
 const PORT = process.env.PORT || 3001;
