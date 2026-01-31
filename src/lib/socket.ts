@@ -14,12 +14,17 @@ let socket: TypedSocket | null = null;
 
 export function getSocket(): TypedSocket {
   if (!socket) {
+    // Get auth token from sessionStorage if available
+    const token = sessionStorage.getItem('auth_token');
+
     socket = io('http://localhost:3001', {
       autoConnect: false,
       reconnection: true,
       reconnectionAttempts: Infinity,
       reconnectionDelay: 1000,
       reconnectionDelayMax: 5000,
+      // Pass auth token in handshake
+      auth: token ? { token } : undefined,
     });
   }
   return socket;

@@ -7,12 +7,13 @@ import { SessionList, useActiveSessionCount } from '@/components/sessions/Sessio
 import { RecentSessionList, useRecentSessionCount } from '@/components/sessions/RecentSessionList';
 import { PermissionBanner } from '@/components/permissions/PermissionBanner';
 import { CreateSessionModal } from '@/components/sessions/CreateSessionModal';
+import { AuthGuard } from '@/components/auth/AuthGuard';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Settings, RefreshCw, Wifi, WifiOff, Plus } from 'lucide-react';
 
-export default function DashboardPage() {
+function DashboardPageContent() {
   const { connected, reconnect, tmuxAvailable } = useWebSocket();
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const activeCount = useActiveSessionCount();
@@ -98,5 +99,13 @@ export default function DashboardPage() {
         onOpenChange={setCreateModalOpen}
       />
     </div>
+  );
+}
+
+export default function DashboardPage() {
+  return (
+    <AuthGuard>
+      <DashboardPageContent />
+    </AuthGuard>
   );
 }

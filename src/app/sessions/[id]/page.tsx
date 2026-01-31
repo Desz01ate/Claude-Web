@@ -9,6 +9,7 @@ import { PromptInput } from '@/components/chat/PromptInput';
 import { PhaseIndicator } from '@/components/sessions/PhaseIndicator';
 import { PermissionBanner } from '@/components/permissions/PermissionBanner';
 import { SessionCleanupModal } from '@/components/sessions/SessionCleanupModal';
+import { AuthGuard } from '@/components/auth/AuthGuard';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -17,7 +18,7 @@ import { useState, useEffect } from 'react';
 import { useSessionStore } from '@/stores/sessionStore';
 import { destroySession } from '@/lib/socket';
 
-export default function SessionDetailPage() {
+function SessionDetailPageContent() {
   const params = useParams();
   const router = useRouter();
   const sessionId = params.id as string;
@@ -241,5 +242,13 @@ export default function SessionDetailPage() {
         />
       )}
     </div>
+  );
+}
+
+export default function SessionDetailPage() {
+  return (
+    <AuthGuard>
+      <SessionDetailPageContent />
+    </AuthGuard>
   );
 }

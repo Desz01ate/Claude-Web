@@ -155,6 +155,7 @@ export type JsonlContentBlock =
 export interface AppConfig {
   maxConcurrentSessions: number;  // Default: 5
   defaultWorkingDirectory?: string;
+  passwordHash?: string;
 }
 
 // Recent session from database (for resume feature)

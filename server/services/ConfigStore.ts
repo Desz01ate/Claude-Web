@@ -1,10 +1,12 @@
 import * as fs from 'fs';
 import * as path from 'path';
+import * as bcrypt from 'bcryptjs';
 import type { AppConfig } from '../../src/types';
 
 const DEFAULT_CONFIG: AppConfig = {
   maxConcurrentSessions: 5,
   defaultWorkingDirectory: undefined,
+  passwordHash: undefined,
 };
 
 export class ConfigStore {
@@ -94,6 +96,14 @@ export class ConfigStore {
       }
     }
 
+    // Handle password (should not be set directly via updateConfig)
+    // The setPassword method should be used instead
+    if (updates.passwordHash !== undefined && updates.passwordHash !== this.config.passwordHash) {
+      // Allow passwordHash to be set/removed via updateConfig
+      // This is used by the config routes to set/remove password
+      this.config.passwordHash = updates.passwordHash;
+    }
+
     this.save();
     return this.getConfig();
   }
@@ -110,5 +120,47 @@ export class ConfigStore {
    */
   getDefaultWorkingDirectory(): string | undefined {
     return this.config.defaultWorkingDirectory;
+  }
+
+  /**
+   * Set a password (hashes and stores the password hash)
+   */
+  async setPassword(password: string): Promise<void> {
+    const saltRounds = 10;
+    const hash = await bcrypt.hash(password, saltRounds);
+    this.config.passwordHash = hash;
+    this.save();
+  }
+
+  /**
+   * Remove password (sets passwordHash to undefined)
+   */
+  removePassword(): void {
+    this.config.passwordHash = undefined;
+    this.save();
+  }
+
+  /**
+   * Verify a password against the stored hash
+   */
+  async verifyPassword(password: string): Promise<boolean> {
+    if (!this.config.passwordHash) {
+      return false;
+    }
+    return bcrypt.compare(password, this.config.passwordHash);
+  }
+
+  /**
+   * Check if a password is set
+   */
+  isPasswordSet(): boolean {
+    return !!this.config.passwordHash;
+  }
+
+  /**
+   * Get password hash (for auth service use)
+   */
+  getPasswordHash(): string | undefined {
+    return this.config.passwordHash;
   }
 }

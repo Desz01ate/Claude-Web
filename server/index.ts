@@ -7,10 +7,12 @@ import { SessionStore } from './services/SessionStore';
 import { SessionDatabase } from './services/SessionDatabase';
 import { TmuxSessionManager } from './services/TmuxSessionManager';
 import { ConfigStore } from './services/ConfigStore';
+import { AuthService } from './services/AuthService';
 import { setupRoutes } from './routes/sessions';
 import { setupSetupRoutes } from './routes/setup';
 import { setupFilesystemRoutes } from './routes/filesystem';
 import { setupConfigRoutes } from './routes/config';
+import { setupAuthRoutes } from './routes/auth';
 import type { ServerToClientEvents, ClientToServerEvents } from '../src/types';
 
 const app = express();
@@ -33,6 +35,9 @@ const sessionStore = new SessionStore(sessionDatabase);
 // Configuration store
 const configStore = new ConfigStore();
 
+// Authentication service
+const authService = new AuthService(configStore);
+
 // Tmux session manager
 const tmuxManager = new TmuxSessionManager();
 
@@ -43,6 +48,7 @@ const webSocketServer = new WebSocketServer(io, sessionStore);
 webSocketServer.setTmuxManager(tmuxManager);
 webSocketServer.setConfigStore(configStore);
 webSocketServer.setSessionDatabase(sessionDatabase);
+webSocketServer.setAuthService(authService);
 
 // Unix socket server for Python hook
 const hookSocketServer = new HookSocketServer(sessionStore, webSocketServer);
@@ -60,6 +66,7 @@ setupRoutes(app, sessionStore);
 setupSetupRoutes(app);
 setupFilesystemRoutes(app);
 setupConfigRoutes(app, configStore);
+setupAuthRoutes(app, authService);
 
 // Start servers
 const PORT = process.env.PORT || 3001;

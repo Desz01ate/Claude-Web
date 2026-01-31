@@ -14,6 +14,7 @@ import type { SessionStore } from '../services/SessionStore';
 import type { TmuxSessionManager } from '../services/TmuxSessionManager';
 import type { ConfigStore } from '../services/ConfigStore';
 import type { SessionDatabase } from '../services/SessionDatabase';
+import type { AuthService } from '../services/AuthService';
 import { PromptSender } from '../services/PromptSender';
 
 export class WebSocketServer {
@@ -25,6 +26,7 @@ export class WebSocketServer {
   private tmuxManager: TmuxSessionManager | null = null;
   private configStore: ConfigStore | null = null;
   private sessionDb: SessionDatabase | null = null;
+  private authService: AuthService | null = null;
   private tmuxAvailable: boolean = false;
 
   constructor(io: Server<ClientToServerEvents, ServerToClientEvents>, sessionStore: SessionStore) {
@@ -54,6 +56,10 @@ export class WebSocketServer {
 
   setSessionDatabase(db: SessionDatabase): void {
     this.sessionDb = db;
+  }
+
+  setAuthService(authService: AuthService): void {
+    this.authService = authService;
   }
 
   setPermissionResponder(responder: (sessionId: string, toolUseId: string, decision: PermissionDecision) => boolean): void {
@@ -94,6 +100,35 @@ export class WebSocketServer {
   }
 
   private setupSocketHandlers(): void {
+    // Authentication middleware
+    this.io.use((socket, next) => {
+      // If auth service is not set up, allow connection (backward compatibility)
+      if (!this.authService) {
+        return next();
+      }
+
+      // If auth is not enabled, allow connection
+      if (!this.authService.isAuthEnabled()) {
+        return next();
+      }
+
+      // Check for auth token
+      const token = socket.handshake.auth?.token;
+
+      if (!token) {
+        console.log(`[WebSocket] Connection rejected: no auth token provided`);
+        return next(new Error('Authentication required'));
+      }
+
+      // Verify token
+      if (!this.authService.verifyToken(token)) {
+        console.log(`[WebSocket] Connection rejected: invalid auth token`);
+        return next(new Error('Invalid authentication token'));
+      }
+
+      next();
+    });
+
     this.io.on('connection', (socket: Socket<ClientToServerEvents, ServerToClientEvents>) => {
       console.log(`[WebSocket] Client connected: ${socket.id}`);
 

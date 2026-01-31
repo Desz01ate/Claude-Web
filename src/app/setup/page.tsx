@@ -13,6 +13,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import type { SetupStatus, AppConfig } from '@/types';
 import { useThemeStore, type ThemeMode } from '@/stores/themeStore';
+import { AuthGuard } from '@/components/auth/AuthGuard';
 import {
   ArrowLeft,
   CheckCircle,
@@ -27,6 +28,8 @@ import {
   Sun,
   Moon,
   Monitor,
+  Lock,
+  Key,
 } from 'lucide-react';
 
 // Theme option radio button component
@@ -71,7 +74,7 @@ function ThemeOption({
   );
 }
 
-export default function SetupPage() {
+function SetupPageContent() {
   const [status, setStatus] = useState<SetupStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
@@ -85,6 +88,15 @@ export default function SetupPage() {
   const [configSuccess, setConfigSuccess] = useState(false);
   const [maxSessions, setMaxSessions] = useState(5);
   const [defaultDirectory, setDefaultDirectory] = useState('');
+
+  // Password state
+  const [authEnabled, setAuthEnabled] = useState(false);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordSaving, setPasswordSaving] = useState(false);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [passwordSuccess, setPasswordSuccess] = useState(false);
 
   const fetchStatus = useCallback(async () => {
     try {
@@ -116,10 +128,25 @@ export default function SetupPage() {
     }
   }, []);
 
+  const fetchAuthStatus = useCallback(async () => {
+    try {
+      const res = await fetch('/api/auth/status');
+      if (res.ok) {
+        const data = await res.json();
+        setAuthEnabled(data.enabled);
+      }
+    } catch (err) {
+      console.error('Failed to fetch auth status:', err);
+    } finally {
+      setAuthLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     fetchStatus();
     fetchConfig();
-  }, [fetchStatus, fetchConfig]);
+    fetchAuthStatus();
+  }, [fetchStatus, fetchConfig, fetchAuthStatus]);
 
   const handleInstall = async () => {
     setActionLoading(true);
@@ -179,6 +206,85 @@ export default function SetupPage() {
     }
   };
 
+  const handleSetPassword = async () => {
+    setPasswordError(null);
+    setPasswordSuccess(false);
+
+    if (!newPassword) {
+      setPasswordError('Please enter a password');
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      setPasswordError('Password must be at least 6 characters');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setPasswordError('Passwords do not match');
+      return;
+    }
+
+    setPasswordSaving(true);
+    try {
+      // First, fetch the current config to get the password hash logic
+      // The server will hash the password and store it
+      const res = await fetch('/api/config', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          // We need to indicate we want to set a password
+          // The server will handle the hashing
+          setPassword: newPassword,
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to set password');
+      }
+
+      setPasswordSuccess(true);
+      setAuthEnabled(true);
+      setNewPassword('');
+      setConfirmPassword('');
+      setTimeout(() => setPasswordSuccess(false), 3000);
+    } catch (err) {
+      setPasswordError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setPasswordSaving(false);
+    }
+  };
+
+  const handleRemovePassword = async () => {
+    if (!confirm('Are you sure you want to remove password protection?')) {
+      return;
+    }
+
+    setPasswordSaving(true);
+    setPasswordError(null);
+    try {
+      const res = await fetch('/api/config', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          removePassword: true,
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to remove password');
+      }
+
+      setAuthEnabled(false);
+    } catch (err) {
+      setPasswordError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setPasswordSaving(false);
+    }
+  };
+
   const isFullyInstalled = status?.installed && status?.settingsConfigured;
 
   return (
@@ -190,7 +296,7 @@ export default function SetupPage() {
             <Link href="/">
               <Button variant="ghost" size="sm" className="gap-2">
                 <ArrowLeft className="h-4 w-4" />
-                Back
+                Back to Dashboard
               </Button>
             </Link>
             <h1 className="text-xl font-bold">Setup</h1>
@@ -397,6 +503,120 @@ export default function SetupPage() {
           </CardContent>
         </Card>
 
+        {/* Password Protection Card */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Lock className="h-5 w-5" />
+              <CardTitle>Password Protection</CardTitle>
+            </div>
+            <CardDescription>
+              Require a password to access the web interface.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {authLoading ? (
+              <div className="text-muted-foreground">Loading status...</div>
+            ) : (
+              <>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm">Password Protection</span>
+                  <Badge variant={authEnabled ? 'success' : 'secondary'} className="gap-1">
+                    {authEnabled ? (
+                      <>
+                        <Key className="h-3 w-3" />
+                        Enabled
+                      </>
+                    ) : (
+                      'Disabled'
+                    )}
+                  </Badge>
+                </div>
+
+                {!authEnabled ? (
+                  <div className="space-y-3 pt-2">
+                    <div className="space-y-2">
+                      <label htmlFor="newPassword" className="text-sm font-medium">
+                        New Password
+                      </label>
+                      <input
+                        id="newPassword"
+                        type="password"
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        disabled={passwordSaving}
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                        placeholder="Enter password (min 6 characters)"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <label htmlFor="confirmPassword" className="text-sm font-medium">
+                        Confirm Password
+                      </label>
+                      <input
+                        id="confirmPassword"
+                        type="password"
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        disabled={passwordSaving}
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                        placeholder="Confirm password"
+                      />
+                    </div>
+
+                    {passwordError && (
+                      <div className="text-sm text-red-500 flex items-center gap-2">
+                        <AlertTriangle className="h-4 w-4" />
+                        {passwordError}
+                      </div>
+                    )}
+
+                    {passwordSuccess && (
+                      <div className="text-sm text-green-600 flex items-center gap-2">
+                        <CheckCircle className="h-4 w-4" />
+                        Password set successfully
+                      </div>
+                    )}
+
+                    <Button
+                      onClick={handleSetPassword}
+                      disabled={passwordSaving}
+                      className="gap-2"
+                    >
+                      <Key className="h-4 w-4" />
+                      {passwordSaving ? 'Setting...' : 'Set Password'}
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-3 pt-2">
+                    <p className="text-sm text-muted-foreground">
+                      Password protection is enabled. Users must log in to access the web interface.
+                      Tokens are stored in sessionStorage and expire after 24 hours.
+                    </p>
+
+                    {passwordError && (
+                      <div className="text-sm text-red-500 flex items-center gap-2">
+                        <AlertTriangle className="h-4 w-4" />
+                        {passwordError}
+                      </div>
+                    )}
+
+                    <Button
+                      variant="destructive"
+                      onClick={handleRemovePassword}
+                      disabled={passwordSaving}
+                      className="gap-2"
+                    >
+                      {passwordSaving ? 'Removing...' : 'Remove Password Protection'}
+                    </Button>
+                  </div>
+                )}
+              </>
+            )}
+          </CardContent>
+        </Card>
+
         {/* Theme Settings Card */}
         <Card>
           <CardHeader>
@@ -469,5 +689,13 @@ export default function SetupPage() {
         </Card>
       </main>
     </div>
+  );
+}
+
+export default function SetupPage() {
+  return (
+    <AuthGuard>
+      <SetupPageContent />
+    </AuthGuard>
   );
 }

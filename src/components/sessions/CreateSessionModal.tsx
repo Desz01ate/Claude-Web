@@ -312,7 +312,9 @@ export function CreateSessionModal({
                     {suggestions.map((suggestion, index) => (
                       <li
                         key={suggestion}
-                        ref={(el) => (suggestionItemRefs.current[index] = el)}
+                        ref={(el) => {
+                          suggestionItemRefs.current[index] = el;
+                        }}
                         className={`px-3 py-2 text-sm cursor-pointer ${
                           index === selectedIndex
                             ? 'bg-accent text-accent-foreground'

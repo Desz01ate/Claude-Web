@@ -22,7 +22,7 @@ export function setupConfigRoutes(app: Express, configStore: ConfigStore): void 
    * PUT /api/config
    * Update app configuration
    */
-  router.put('/config', (req, res) => {
+  router.put('/config', async (req, res) => {
     try {
       const updates = req.body;
 
@@ -32,8 +32,37 @@ export function setupConfigRoutes(app: Express, configStore: ConfigStore): void 
         return;
       }
 
+      // Handle password set/remove operations
+      if (updates.setPassword !== undefined) {
+        const password = updates.setPassword;
+        if (typeof password !== 'string' || password.length < 6) {
+          res.status(400).json({ error: 'Password must be at least 6 characters' });
+          return;
+        }
+        if (password.length > 1024) {
+          res.status(400).json({ error: 'Password too long' });
+          return;
+        }
+        await configStore.setPassword(password);
+        // Return updated config (excluding the hash)
+        const config = configStore.getConfig();
+        const { passwordHash, ...configWithoutHash } = config;
+        res.json(configWithoutHash);
+        return;
+      }
+
+      if (updates.removePassword !== undefined && updates.removePassword === true) {
+        configStore.removePassword();
+        const config = configStore.getConfig();
+        const { passwordHash, ...configWithoutHash } = config;
+        res.json(configWithoutHash);
+        return;
+      }
+
+      // Regular config updates (exclude passwordHash from response)
       const config = configStore.updateConfig(updates);
-      res.json(config);
+      const { passwordHash, ...configWithoutHash } = config;
+      res.json(configWithoutHash);
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : String(err);
       res.status(400).json({ error: errorMsg });
