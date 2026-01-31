@@ -34,3 +34,10 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# server build output
+/server/dist
+
+# docker workspace
+/workspace
+!workspace/.gitkeep

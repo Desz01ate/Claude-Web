@@ -1,7 +1,9 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { persist, createJSONStorage } from 'zustand/middleware';
 
 const AUTH_TOKEN_KEY = 'auth_token';
+
+const isBrowser = typeof window !== 'undefined';
 
 interface AuthState {
   isAuthenticated: boolean;
@@ -28,7 +30,7 @@ export const useAuthStore = create<AuthState>()(
       },
 
       setToken: (token: string) => {
-        sessionStorage.setItem(AUTH_TOKEN_KEY, token);
+        if (isBrowser) sessionStorage.setItem(AUTH_TOKEN_KEY, token);
         set({ token, isAuthenticated: true, error: null });
       },
 
@@ -57,7 +59,7 @@ export const useAuthStore = create<AuthState>()(
       },
 
       logout: () => {
-        sessionStorage.removeItem(AUTH_TOKEN_KEY);
+        if (isBrowser) sessionStorage.removeItem(AUTH_TOKEN_KEY);
         set({ token: null, isAuthenticated: false });
       },
 
@@ -73,24 +75,21 @@ export const useAuthStore = create<AuthState>()(
         isAuthRequired: state.isAuthRequired,
         isAuthenticated: state.isAuthenticated,
       }),
-      storage: {
-        getItem: (name) => {
-          const str = sessionStorage.getItem(name);
-          return str ? JSON.parse(str) : null;
-        },
-        setItem: (name, value) => {
-          sessionStorage.setItem(name, JSON.stringify(value));
-        },
-        removeItem: (name) => {
-          sessionStorage.removeItem(name);
-        },
-      },
+      storage: isBrowser
+        ? createJSONStorage(() => sessionStorage)
+        : {
+            getItem: () => null,
+            setItem: () => {},
+            removeItem: () => {},
+          },
     }
   )
 );
 
-// Initialize token from sessionStorage on store creation
-const storedToken = sessionStorage.getItem(AUTH_TOKEN_KEY);
-if (storedToken) {
-  useAuthStore.setState({ token: storedToken, isAuthenticated: true });
+// Initialize token from sessionStorage on store creation (client-side only)
+if (isBrowser) {
+  const storedToken = sessionStorage.getItem(AUTH_TOKEN_KEY);
+  if (storedToken) {
+    useAuthStore.setState({ token: storedToken, isAuthenticated: true });
+  }
 }

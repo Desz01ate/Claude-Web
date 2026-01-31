@@ -1,0 +1,32 @@
+services:
+  claude-web:
+    build: .
+    container_name: claude-web
+    ports:
+      - "3000:3000"  # Next.js frontend
+      - "3001:3001"  # Express backend
+    volumes:
+      # Mount host's .claude directory for hook installation and conversation files
+      - ${HOME}/.claude:/home/appuser/.claude
+      # Mount Claude config file (contains onboarding/auth state)
+      - ${HOME}/.claude.json:/home/appuser/.claude.json
+      # Mount workspace directory for Claude to work on projects
+      - ${WORKSPACE:-./workspace}:/workspace
+      # Mount additional directory for your work-specific if needed
+    environment:
+      - NODE_ENV=production
+      - HOME=/home/appuser
+      - HOST_USER=${USER:-}
+      # Pass host UID/GID for file permission compatibility
+      - LOCAL_UID=${UID:-1000}
+      - LOCAL_GID=${GID:-1000}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      # Allow all origins for CORS (or set specific origins comma-separated)
+      - CORS_ORIGIN=*
+      # Terminal settings for Claude Code
+      - TERM=xterm-256color
+      - COLORTERM=truecolor
+    # Enable interactive terminal for Claude sessions
+    stdin_open: true
+    tty: true
+    restart: unless-stopped

@@ -19,9 +19,13 @@ const app = express();
 const httpServer = createServer(app);
 
 // Socket.io for browser clients
+const corsOrigin = process.env.CORS_ORIGIN === '*'
+  ? true  // Allow all origins
+  : process.env.CORS_ORIGIN?.split(',') || ['http://localhost:3000', 'http://127.0.0.1:3000'];
+
 const io = new Server<ClientToServerEvents, ServerToClientEvents>(httpServer, {
   cors: {
-    origin: ['http://localhost:3000', 'http://127.0.0.1:3000'],
+    origin: corsOrigin,
     methods: ['GET', 'POST'],
   },
 });
@@ -70,9 +74,10 @@ setupAuthRoutes(app, authService);
 
 // Start servers
 const PORT = process.env.PORT || 3001;
+const HOST = process.env.HOST || '0.0.0.0';
 
-httpServer.listen(PORT, () => {
-  console.log(`[Server] HTTP server listening on port ${PORT}`);
+httpServer.listen(Number(PORT), HOST, () => {
+  console.log(`[Server] HTTP server listening on ${HOST}:${PORT}`);
 });
 
 hookSocketServer.start();
