@@ -6,6 +6,7 @@ import type { AppConfig } from '../../src/types';
 const DEFAULT_CONFIG: AppConfig = {
   maxConcurrentSessions: 5,
   defaultWorkingDirectory: undefined,
+  claudeCommandPath: undefined,
   passwordHash: undefined,
   failedLoginAttempts: 0,
   lockedOut: false,
@@ -98,6 +99,15 @@ export class ConfigStore {
       }
     }
 
+    // Validate claudeCommandPath
+    if (updates.claudeCommandPath !== undefined) {
+      if (updates.claudeCommandPath === '' || updates.claudeCommandPath === null) {
+        this.config.claudeCommandPath = undefined;
+      } else {
+        this.config.claudeCommandPath = updates.claudeCommandPath;
+      }
+    }
+
     // Handle password (should not be set directly via updateConfig)
     // The setPassword method should be used instead
     if (updates.passwordHash !== undefined && updates.passwordHash !== this.config.passwordHash) {
@@ -122,6 +132,13 @@ export class ConfigStore {
    */
   getDefaultWorkingDirectory(): string | undefined {
     return this.config.defaultWorkingDirectory;
+  }
+
+  /**
+   * Get claude command path
+   */
+  getClaudeCommandPath(): string | undefined {
+    return this.config.claudeCommandPath;
   }
 
   /**

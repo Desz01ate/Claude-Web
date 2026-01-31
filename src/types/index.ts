@@ -157,6 +157,7 @@ export type JsonlContentBlock =
 export interface AppConfig {
   maxConcurrentSessions: number;  // Default: 5
   defaultWorkingDirectory?: string;
+  claudeCommandPath?: string;     // Custom path to claude command (e.g., /opt/claude/bin/claude)
   passwordHash?: string;
   failedLoginAttempts?: number;   // Number of consecutive failed login attempts
   lockedOut?: boolean;            // True if user is locked out after too many failed attempts

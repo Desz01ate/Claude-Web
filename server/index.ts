@@ -48,7 +48,7 @@ const authService = new AuthService(configStore);
 const mcpStore = new MCPStore();
 
 // Tmux session manager
-const tmuxManager = new TmuxSessionManager();
+const tmuxManager = new TmuxSessionManager(configStore);
 
 // WebSocket server for browser clients
 const webSocketServer = new WebSocketServer(io, sessionStore);

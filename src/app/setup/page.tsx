@@ -89,6 +89,7 @@ function SetupPageContent() {
   const [configSuccess, setConfigSuccess] = useState(false);
   const [maxSessions, setMaxSessions] = useState(5);
   const [defaultDirectory, setDefaultDirectory] = useState('');
+  const [claudeCommandPath, setClaudeCommandPath] = useState('');
 
   // Password state
   const [authEnabled, setAuthEnabled] = useState(false);
@@ -121,6 +122,7 @@ function SetupPageContent() {
       setConfig(data);
       setMaxSessions(data.maxConcurrentSessions);
       setDefaultDirectory(data.defaultWorkingDirectory || '');
+      setClaudeCommandPath(data.claudeCommandPath || '');
       setConfigError(null);
     } catch (err) {
       setConfigError(String(err));
@@ -190,6 +192,7 @@ function SetupPageContent() {
         body: JSON.stringify({
           maxConcurrentSessions: maxSessions,
           defaultWorkingDirectory: defaultDirectory || null,
+          claudeCommandPath: claudeCommandPath || null,
         }),
       });
       if (!res.ok) {
@@ -472,6 +475,23 @@ function SetupPageContent() {
                   />
                   <p className="text-xs text-muted-foreground">
                     Pre-filled directory when creating new sessions. Leave empty for no default.
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <label htmlFor="claudeCommandPath" className="text-sm font-medium">
+                    Claude Command Path
+                  </label>
+                  <input
+                    id="claudeCommandPath"
+                    type="text"
+                    value={claudeCommandPath}
+                    onChange={(e) => setClaudeCommandPath(e.target.value)}
+                    placeholder="claude (default)"
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Custom path to the claude command. Leave empty to use system default.
                   </p>
                 </div>
 

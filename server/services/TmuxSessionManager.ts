@@ -1,6 +1,7 @@
 import { spawn, exec } from 'child_process';
 import { promisify } from 'util';
 import { v4 as uuidv4 } from 'uuid';
+import { ConfigStore } from './ConfigStore';
 
 const execAsync = promisify(exec);
 
@@ -17,6 +18,18 @@ export interface TmuxResult {
 
 export class TmuxSessionManager {
   private static SESSION_PREFIX = 'claude-web-';
+  private configStore: ConfigStore;
+
+  constructor(configStore: ConfigStore) {
+    this.configStore = configStore;
+  }
+
+  /**
+   * Get the claude command to use (custom path or default)
+   */
+  private getClaudeCommand(): string {
+    return this.configStore.getClaudeCommandPath() || 'claude';
+  }
 
   static async sleep(ms: number) {
     return new Promise(resolve => setTimeout(resolve, ms));
@@ -69,7 +82,8 @@ export class TmuxSessionManager {
       }
 
       // Now send the claude --resume command
-      const resumeCommand = `tmux send-keys -t "${tmuxName}" "claude --resume ${sessionId}" Enter`;
+      const claudeCmd = this.getClaudeCommand();
+      const resumeCommand = `tmux send-keys -t "${tmuxName}" "${claudeCmd} --resume ${sessionId}" Enter`;
       console.log(`[TmuxSessionManager] Sending resume command: ${resumeCommand}`);
       await execAsync(resumeCommand);
 
@@ -119,7 +133,8 @@ export class TmuxSessionManager {
       }
 
       // Now send the claude command
-      const claudeCommand = `tmux send-keys -t "${tmuxName}" "claude" Enter`;
+      const claudeCmd = this.getClaudeCommand();
+      const claudeCommand = `tmux send-keys -t "${tmuxName}" "${claudeCmd}" Enter`;
       console.log(`[TmuxSessionManager] Sending claude command: ${claudeCommand}`);
       await execAsync(claudeCommand);
 
