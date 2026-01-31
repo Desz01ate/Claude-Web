@@ -8,7 +8,7 @@ import { usePermissionStore } from '@/stores/permissionStore';
 export function useWebSocket() {
   const [connected, setConnected] = useState(false);
   const [tmuxAvailable, setTmuxAvailable] = useState(false);
-  const { setSessions, updateSession, removeSession, updateChatHistory, addToCleanupQueue, setRecentSessions, resetSessionsLoaded, setSessionMode } =
+  const { setSessions, updateSession, removeSession, updateChatHistory, clearChatHistory, addToCleanupQueue, setRecentSessions, resetSessionsLoaded, setSessionMode } =
     useSessionStore();
   const { addPermission, removePermission, clearPermissionsForSession } =
     usePermissionStore();
@@ -67,6 +67,10 @@ export function useWebSocket() {
       updateChatHistory(sessionId, messages);
     });
 
+    socket.on('chat:clear', (sessionId) => {
+      clearChatHistory(sessionId);
+    });
+
     socket.on('tmux:available', (available) => {
       setTmuxAvailable(available);
     });
@@ -99,6 +103,7 @@ export function useWebSocket() {
       socket.off('permission:request');
       socket.off('permission:resolved');
       socket.off('chat:update');
+      socket.off('chat:clear');
       socket.off('tmux:available');
       socket.off('session:created');
       socket.off('session:cleanup-prompt');
@@ -111,6 +116,7 @@ export function useWebSocket() {
     updateSession,
     removeSession,
     updateChatHistory,
+    clearChatHistory,
     addPermission,
     removePermission,
     clearPermissionsForSession,

@@ -29,10 +29,16 @@ export interface PermissionContext {
   receivedAt: Date;
 }
 
+export interface CompactionMessageContent {
+  type: 'compaction';
+  timestamp: Date;
+  message: string;
+}
+
 export interface ChatHistoryItem {
   id: string;
-  type: 'user' | 'assistant' | 'toolCall' | 'toolResult' | 'thinking' | 'permissionRequest';
-  content: string | ToolCallContent | ToolResultContent | PermissionRequestContent;
+  type: 'user' | 'assistant' | 'toolCall' | 'toolResult' | 'thinking' | 'permissionRequest' | 'compaction';
+  content: string | ToolCallContent | ToolResultContent | PermissionRequestContent | CompactionMessageContent;
   timestamp: Date;
 }
 
@@ -102,6 +108,7 @@ export type HookEventType =
   | 'waiting_for_input'
   | 'waiting_for_approval'
   | 'compacting'
+  | 'compaction_finished'
   | 'notification'
   | 'ended';
 
@@ -114,6 +121,7 @@ export interface ServerToClientEvents {
   'permission:request': (sessionId: string, permission: PermissionContext) => void;
   'permission:resolved': (sessionId: string, toolUseId: string) => void;
   'chat:update': (sessionId: string, messages: ChatHistoryItem[]) => void;
+  'chat:clear': (sessionId: string) => void;
   'sessions:list': (sessions: SessionState[]) => void;
   'sessions:recent': (sessions: RecentSession[]) => void;
   'prompt:sent': (sessionId: string, success: boolean, error?: string) => void;

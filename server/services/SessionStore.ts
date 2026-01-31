@@ -208,6 +208,12 @@ export class SessionStore extends EventEmitter {
         session.phase = { type: 'compacting' };
         break;
 
+      case 'compaction_finished':
+        // Transition out of compacting to processing, then emit chat:clear
+        session.phase = { type: 'processing' };
+        this.emit('chat:clear', session_id);
+        break;
+
       case 'session_end':
       case 'ended':
         session.phase = { type: 'ended' };

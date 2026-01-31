@@ -107,6 +107,10 @@ export class WebSocketServer {
     this.sessionStore.on('chat:update', (sessionId: string, messages: ChatHistoryItem[]) => {
       this.broadcastToSubscribers(sessionId, 'chat:update', sessionId, messages);
     });
+
+    this.sessionStore.on('chat:clear', (sessionId: string) => {
+      this.broadcastToSubscribers(sessionId, 'chat:clear', sessionId);
+    });
   }
 
   private setupSocketHandlers(): void {

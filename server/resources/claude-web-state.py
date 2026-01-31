@@ -187,6 +187,10 @@ def main():
         # Context is being compacted (manual or auto)
         event_data["event_type"] = "compacting"
 
+    elif event == "PostCompact":
+        # Context compaction finished
+        event_data["event_type"] = "compaction_finished"
+
     else:
         event_data["event_type"] = "notification"
         event_data["message"] = f"Unknown event: {event}"

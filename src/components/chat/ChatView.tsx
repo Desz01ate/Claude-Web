@@ -6,7 +6,8 @@ import { ToolCallCard } from './ToolCallCard';
 import { PermissionRequestCard } from './PermissionRequestCard';
 import { QuestionCard } from './QuestionCard';
 import { usePermissionStore } from '@/stores/permissionStore';
-import type { ChatHistoryItem, ToolCallContent, ToolResultContent, PermissionRequestContent } from '@/types';
+import type { ChatHistoryItem, ToolCallContent, ToolResultContent, PermissionRequestContent, CompactionMessageContent } from '@/types';
+import { RefreshCw } from 'lucide-react';
 
 interface ChatViewProps {
   messages: ChatHistoryItem[];
@@ -30,7 +31,8 @@ export function ChatView({ messages, sessionId }: ChatViewProps) {
   type GroupedItem =
     | ChatHistoryItem
     | { toolCall: ChatHistoryItem; toolResult?: ChatHistoryItem }
-    | { permissionRequest: ChatHistoryItem };
+    | { permissionRequest: ChatHistoryItem }
+    | { compaction: ChatHistoryItem };
 
   const groupedMessages: GroupedItem[] = [];
   const toolCalls = new Map<string, ChatHistoryItem>();
@@ -56,6 +58,13 @@ export function ChatView({ messages, sessionId }: ChatViewProps) {
         toolCalls.delete(id);
       }
       groupedMessages.push({ permissionRequest: msg });
+    } else if (msg.type === 'compaction') {
+      // First, flush any pending tool calls without results
+      for (const [id, call] of toolCalls) {
+        groupedMessages.push({ toolCall: call });
+        toolCalls.delete(id);
+      }
+      groupedMessages.push({ compaction: msg });
     } else {
       // First, flush any pending tool calls without results
       for (const [id, call] of toolCalls) {
@@ -130,6 +139,20 @@ export function ChatView({ messages, sessionId }: ChatViewProps) {
                 sessionId={sessionId}
                 content={content}
               />
+            );
+          }
+          if ('compaction' in item) {
+            const content = item.compaction.content as CompactionMessageContent;
+            return (
+              <div
+                key={item.compaction.id}
+                className="flex items-center justify-center py-4"
+              >
+                <div className="flex items-center gap-2 px-4 py-2 bg-muted/50 rounded-full text-sm text-muted-foreground border border-border/50">
+                  <RefreshCw className="w-4 h-4" />
+                  <span>{content.message}</span>
+                </div>
+              </div>
             );
           }
           return <ChatMessage key={item.id || index} item={item} />;

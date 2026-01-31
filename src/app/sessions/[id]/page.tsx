@@ -13,10 +13,10 @@ import { AuthGuard } from '@/components/auth/AuthGuard';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, FolderOpen, Terminal, Globe, ExternalLink, AlertCircle, Square, ToggleRight } from 'lucide-react';
+import { ArrowLeft, FolderOpen, Terminal, Globe, ExternalLink, AlertCircle, Square, ToggleRight, Trash2, Minimize2 } from 'lucide-react';
 import { useState, useEffect, useCallback } from 'react';
 import { useSessionStore, type ClaudeMode } from '@/stores/sessionStore';
-import { destroySession, cycleSessionMode as emitCycleMode, getSocket } from '@/lib/socket';
+import { destroySession, cycleSessionMode as emitCycleMode, getSocket, sendPrompt } from '@/lib/socket';
 
 const MODE_LABELS: Record<ClaudeMode, string> = {
   none: 'Default',
@@ -47,6 +47,8 @@ function SessionDetailPageContent() {
   const [cleanupModalOpen, setCleanupModalOpen] = useState(false);
   const [isEnding, setIsEnding] = useState(false);
   const [isCyclingMode, setIsCyclingMode] = useState(false);
+  const [isClearing, setIsClearing] = useState(false);
+  const [isCompacting, setIsCompacting] = useState(false);
 
   // Get current mode from store
   const currentMode = getSessionMode(sessionId);
@@ -114,6 +116,22 @@ function SessionDetailPageContent() {
     setIsEnding(true);
     destroySession(sessionId, false);
     router.push('/');
+  };
+
+  const handleClear = () => {
+    if (!session?.isManaged || session.phase.type === 'ended') return;
+    setIsClearing(true);
+    sendPrompt(sessionId, '/clear');
+    // Reset after a short delay since there's no explicit confirmation
+    setTimeout(() => setIsClearing(false), 1000);
+  };
+
+  const handleCompact = () => {
+    if (!session?.isManaged || session.phase.type === 'ended') return;
+    setIsCompacting(true);
+    sendPrompt(sessionId, '/compact');
+    // Reset after a short delay since there's no explicit confirmation
+    setTimeout(() => setIsCompacting(false), 1000);
   };
 
   // Show cleanup modal when this session is in the cleanup queue
@@ -252,40 +270,72 @@ function SessionDetailPageContent() {
               </div>
 
               {session.isManaged && (
-                <div className="space-y-3 mt-2">
-                  {/* Mode Display */}
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground">Mode:</span>
-                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${MODE_COLORS[currentMode]}`}>
-                        {MODE_LABELS[currentMode]}
-                      </span>
-                    </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleCycleMode}
-                      disabled={session.phase.type === 'ended' || isCyclingMode}
-                      className="w-full gap-1"
-                    >
-                      <ToggleRight className={`h-3 w-3 ${isCyclingMode ? 'animate-spin' : ''}`} />
-                      {isCyclingMode ? 'Switching...' : 'Cycle Mode (Shift+Tab)'}
-                    </Button>
-                  </div>
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={handleEndSession}
-                    disabled={isEnding}
-                    className="w-full gap-1"
-                  >
-                    <Square className="h-3 w-3 fill-current" />
-                    {isEnding ? 'Ending...' : 'End Session'}
-                  </Button>
-                </div>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={handleEndSession}
+                  disabled={isEnding}
+                  className="w-full gap-1 mt-2"
+                >
+                  <Square className="h-3 w-3 fill-current" />
+                  {isEnding ? 'Ending...' : 'End Session'}
+                </Button>
               )}
             </CardContent>
           </Card>
+
+          {session.isManaged && (
+            <Card className="mt-4">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm">Context Management</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {/* Mode Display */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">Mode:</span>
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${MODE_COLORS[currentMode]}`}>
+                      {MODE_LABELS[currentMode]}
+                    </span>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleCycleMode}
+                    disabled={session.phase.type === 'ended' || isCyclingMode}
+                    className="w-full gap-1"
+                  >
+                    <ToggleRight className={`h-3 w-3 ${isCyclingMode ? 'animate-spin' : ''}`} />
+                    {isCyclingMode ? 'Switching...' : 'Cycle Mode (Shift+Tab)'}
+                  </Button>
+                </div>
+
+                <div className="space-y-2">
+                  {/* Disabled because /clear is effectively ended current session, which doesn't make sense in this context. Better start a new session instead */}
+                  {/* <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleClear}
+                    disabled={session.phase.type === 'ended' || isClearing}
+                    className="w-full gap-1"
+                  >
+                    <Trash2 className="h-3 w-3" />
+                    {isClearing ? 'Clearing...' : 'Clear'}
+                  </Button> */}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleCompact}
+                    disabled={session.phase.type === 'ended' || isCompacting}
+                    className="w-full gap-1"
+                  >
+                    <Minimize2 className="h-3 w-3" />
+                    {isCompacting ? 'Compacting...' : 'Compact'}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </aside>
 
         {/* Chat Area */}

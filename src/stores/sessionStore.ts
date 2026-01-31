@@ -21,6 +21,7 @@ interface SessionStore {
   setActiveSession: (sessionId: string | null) => void;
   updateChatHistory: (sessionId: string, messages: ChatHistoryItem[]) => void;
   addChatMessage: (sessionId: string, message: ChatHistoryItem) => void;
+  clearChatHistory: (sessionId: string) => void;
   addToCleanupQueue: (sessionId: string) => void;
   removeFromCleanupQueue: (sessionId: string) => void;
   setRecentSessions: (sessions: RecentSession[]) => void;
@@ -135,6 +136,14 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       const newChatHistory = new Map(state.chatHistory);
       const existing = newChatHistory.get(sessionId) || [];
       newChatHistory.set(sessionId, [...existing, message]);
+      return { chatHistory: newChatHistory };
+    });
+  },
+
+  clearChatHistory: (sessionId) => {
+    set((state) => {
+      const newChatHistory = new Map(state.chatHistory);
+      newChatHistory.set(sessionId, []);
       return { chatHistory: newChatHistory };
     });
   },
