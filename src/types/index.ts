@@ -40,7 +40,29 @@ export interface PermissionRequestContent {
   toolUseId: string;
   toolName: string;
   toolInput?: Record<string, unknown>;
-  status: 'pending' | 'allowed' | 'denied' | 'asked';
+  status: 'pending' | 'allowed' | 'denied' | 'asked' | 'answered';
+}
+
+// AskUserQuestion tool types
+export interface QuestionOption {
+  label: string;
+  description: string;
+}
+
+export interface Question {
+  question: string;
+  header: string;
+  options: QuestionOption[];
+  multiSelect: boolean;
+}
+
+export interface AskUserQuestionInput {
+  questions: Question[];
+}
+
+// Response type for questions
+export interface QuestionAnswers {
+  answers: Record<string, string>;
 }
 
 export interface ToolCallContent {
@@ -95,6 +117,7 @@ export interface ServerToClientEvents {
   'sessions:recent': (sessions: RecentSession[]) => void;
   'prompt:sent': (sessionId: string, success: boolean, error?: string) => void;
   'session:cycleMode:result': (sessionId: string, success: boolean, error?: string) => void;
+  'session:modeReset': (sessionId: string) => void;
   'tmux:available': (available: boolean) => void;
 }
 
@@ -113,6 +136,7 @@ export interface SessionDeleteResult {
 
 export interface ClientToServerEvents {
   'permission:respond': (sessionId: string, toolUseId: string, decision: PermissionDecision) => void;
+  'question:respond': (sessionId: string, toolUseId: string, answers: Record<string, string>) => void;
   'session:subscribe': (sessionId: string) => void;
   'session:unsubscribe': (sessionId: string) => void;
   'session:create': (workingDirectory: string, callback: (result: SessionCreateResult) => void) => void;

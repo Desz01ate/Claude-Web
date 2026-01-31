@@ -22,6 +22,7 @@ export class WebSocketServer {
   private sessionStore: SessionStore;
   private subscriptions: Map<string, Set<string>> = new Map(); // socketId -> Set<sessionId>
   private permissionResponder: ((sessionId: string, toolUseId: string, decision: PermissionDecision) => boolean) | null = null;
+  private questionResponder: ((sessionId: string, toolUseId: string, answers: Record<string, string>) => boolean) | null = null;
   private promptSender: PromptSender;
   private tmuxManager: TmuxSessionManager | null = null;
   private configStore: ConfigStore | null = null;
@@ -64,6 +65,15 @@ export class WebSocketServer {
 
   setPermissionResponder(responder: (sessionId: string, toolUseId: string, decision: PermissionDecision) => boolean): void {
     this.permissionResponder = responder;
+  }
+
+  setQuestionResponder(responder: (sessionId: string, toolUseId: string, answers: Record<string, string>) => boolean): void {
+    this.questionResponder = responder;
+  }
+
+  emitModeReset(sessionId: string): void {
+    console.log(`[WebSocket] Emitting mode reset for session ${sessionId}`);
+    this.io.emit('session:modeReset', sessionId);
   }
 
   private setupEventListeners(): void {
@@ -309,6 +319,14 @@ export class WebSocketServer {
         console.log(`[WebSocket] Permission response: ${decision} for ${toolUseId}`);
         if (this.permissionResponder) {
           this.permissionResponder(sessionId, toolUseId, decision);
+        }
+      });
+
+      // Handle question responses (AskUserQuestion)
+      socket.on('question:respond', (sessionId: string, toolUseId: string, answers: Record<string, string>) => {
+        console.log(`[WebSocket] Question response for ${toolUseId}:`, Object.keys(answers));
+        if (this.questionResponder) {
+          this.questionResponder(sessionId, toolUseId, answers);
         }
       });
 

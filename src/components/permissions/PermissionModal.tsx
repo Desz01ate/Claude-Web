@@ -12,6 +12,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ToolInputDisplay } from './ToolInputDisplay';
+import { QuestionModal } from './QuestionModal';
 import { respondToPermission } from '@/lib/socket';
 import type { PermissionContext } from '@/types';
 import { ShieldAlert, Check, X, HelpCircle } from 'lucide-react';
@@ -29,6 +30,17 @@ export function PermissionModal({
   sessionId,
   permission,
 }: PermissionModalProps) {
+  // Check if this is an AskUserQuestion tool - delegate to QuestionModal
+  if (permission.toolName === 'AskUserQuestion') {
+    return (
+      <QuestionModal
+        open={open}
+        onOpenChange={onOpenChange}
+        sessionId={sessionId}
+        permission={permission}
+      />
+    );
+  }
   const handleDecision = useCallback(
     (decision: 'allow' | 'deny' | 'ask') => {
       respondToPermission(sessionId, permission.toolUseId, decision);

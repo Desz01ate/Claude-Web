@@ -84,6 +84,14 @@ export function respondToPermission(
   getSocket().emit('permission:respond', sessionId, toolUseId, decision);
 }
 
+export function respondToQuestion(
+  sessionId: string,
+  toolUseId: string,
+  answers: Record<string, string>
+): void {
+  getSocket().emit('question:respond', sessionId, toolUseId, answers);
+}
+
 export function sendPrompt(sessionId: string, prompt: string): void {
   getSocket().emit('prompt:send', sessionId, prompt);
 }

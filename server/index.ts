@@ -62,9 +62,17 @@ webSocketServer.setAuthService(authService);
 // Unix socket server for Python hook
 const hookSocketServer = new HookSocketServer(sessionStore, webSocketServer);
 
+// Wire up tmux manager to hook socket for question answering via key presses
+hookSocketServer.setTmuxManager(tmuxManager);
+
 // Wire up permission responder from WebSocket to Hook socket
 webSocketServer.setPermissionResponder((sessionId, toolUseId, decision) => {
   return hookSocketServer.respondToPermission(sessionId, toolUseId, decision);
+});
+
+// Wire up question responder for AskUserQuestion tool
+webSocketServer.setQuestionResponder((sessionId, toolUseId, answers) => {
+  return hookSocketServer.respondToQuestion(sessionId, toolUseId, answers);
 });
 
 // Express middleware

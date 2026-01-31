@@ -8,7 +8,7 @@ import { usePermissionStore } from '@/stores/permissionStore';
 export function useWebSocket() {
   const [connected, setConnected] = useState(false);
   const [tmuxAvailable, setTmuxAvailable] = useState(false);
-  const { setSessions, updateSession, removeSession, updateChatHistory, addToCleanupQueue, setRecentSessions, resetSessionsLoaded } =
+  const { setSessions, updateSession, removeSession, updateChatHistory, addToCleanupQueue, setRecentSessions, resetSessionsLoaded, setSessionMode } =
     useSessionStore();
   const { addPermission, removePermission, clearPermissionsForSession } =
     usePermissionStore();
@@ -83,6 +83,11 @@ export function useWebSocket() {
       setRecentSessions(sessions);
     });
 
+    socket.on('session:modeReset', (sessionId) => {
+      console.log(`[WS] Mode reset for session ${sessionId}`);
+      setSessionMode(sessionId, 'none');
+    });
+
     connectSocket();
 
     return () => {
@@ -98,6 +103,7 @@ export function useWebSocket() {
       socket.off('session:created');
       socket.off('session:cleanup-prompt');
       socket.off('sessions:recent');
+      socket.off('session:modeReset');
       disconnectSocket();
     };
   }, [
@@ -111,6 +117,7 @@ export function useWebSocket() {
     addToCleanupQueue,
     setRecentSessions,
     resetSessionsLoaded,
+    setSessionMode,
   ]);
 
   const reconnect = useCallback(() => {

@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ToolInputDisplay } from '@/components/permissions/ToolInputDisplay';
+import { QuestionCard } from './QuestionCard';
 import { respondToPermission } from '@/lib/socket';
 import type { PermissionRequestContent } from '@/types';
 import {
@@ -29,6 +30,10 @@ export function PermissionRequestCard({
   sessionId,
   content,
 }: PermissionRequestCardProps) {
+  // Check if this is an AskUserQuestion tool - delegate to QuestionCard
+  if (content.toolName === 'AskUserQuestion') {
+    return <QuestionCard sessionId={sessionId} content={content} />;
+  }
   const [expanded, setExpanded] = useState(true);
   const [localStatus, setLocalStatus] = useState(content.status);
   const isPending = localStatus === 'pending';
