@@ -12,10 +12,11 @@ import '@xterm/xterm/css/xterm.css';
 interface WebTerminalProps {
   path: string;
   rootPath: string;
+  isVisible?: boolean;
   onClose: () => void;
 }
 
-export function WebTerminal({ path, rootPath, onClose }: WebTerminalProps) {
+export function WebTerminal({ path, rootPath, isVisible = true, onClose }: WebTerminalProps) {
   const terminalRef = useRef<HTMLDivElement>(null);
   const xtermRef = useRef<Terminal | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
@@ -23,6 +24,7 @@ export function WebTerminal({ path, rootPath, onClose }: WebTerminalProps) {
   const [isConnected, setIsConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isMaximized, setIsMaximized] = useState(false);
+  const [reconnectKey, setReconnectKey] = useState(0); // Increment to trigger reconnection
 
   // Initialize terminal
   useEffect(() => {
@@ -65,8 +67,6 @@ export function WebTerminal({ path, rootPath, onClose }: WebTerminalProps) {
     xtermRef.current = terminal;
     fitAddonRef.current = fitAddon;
 
-    terminal.writeln('Connecting to terminal...');
-
     return () => {
       terminal.dispose();
       xtermRef.current = null;
@@ -106,8 +106,9 @@ export function WebTerminal({ path, rootPath, onClose }: WebTerminalProps) {
           // Handle terminal exit
           const handleExit = ({ sessionId: sid }: { sessionId: string }) => {
             if (sid === termSessionId) {
-              terminal.writeln('\r\n[Terminal session ended]');
+              terminal.writeln('\r\n[Terminal session ended. Press Enter to reconnect]');
               setIsConnected(false);
+              setSessionId(null);
             }
           };
           socket.on('terminal:exit', handleExit);
@@ -149,12 +150,13 @@ export function WebTerminal({ path, rootPath, onClose }: WebTerminalProps) {
       }
     };
 
+    terminal.writeln('Connecting to terminal...');
     const cleanupPromise = initSession();
 
     return () => {
       cleanupPromise.then((cleanup) => cleanup?.());
     };
-  }, [path, rootPath]);
+  }, [path, rootPath, reconnectKey]);
 
   // Handle resize
   useEffect(() => {
@@ -186,17 +188,37 @@ export function WebTerminal({ path, rootPath, onClose }: WebTerminalProps) {
     };
   }, [sessionId, isMaximized]);
 
-  // Handle close
-  const handleClose = useCallback(async () => {
-    if (sessionId) {
-      try {
-        await closeTerminalSession(sessionId);
-      } catch (err) {
-        console.error('Error closing terminal session:', err);
+  // Handle reconnection when session has ended
+  useEffect(() => {
+    if (!xtermRef.current || isConnected || sessionId) return;
+
+    const terminal = xtermRef.current;
+
+    // Listen for Enter key to trigger reconnection
+    const disposeOnData = terminal.onData((data) => {
+      if (data === '\r' || data === '\n') {
+        setReconnectKey((k) => k + 1);
       }
-    }
+    });
+
+    return () => {
+      disposeOnData.dispose();
+    };
+  }, [isConnected, sessionId]);
+
+  // Clean up terminal session on actual unmount (not just hide)
+  useEffect(() => {
+    return () => {
+      if (sessionId) {
+        closeTerminalSession(sessionId).catch(console.error);
+      }
+    };
+  }, [sessionId]);
+
+  // Handle close - just hide, don't kill session
+  const handleClose = useCallback(() => {
     onClose();
-  }, [sessionId, onClose]);
+  }, [onClose]);
 
   return (
     <div
@@ -242,7 +264,7 @@ export function WebTerminal({ path, rootPath, onClose }: WebTerminalProps) {
       </div>
 
       {/* Terminal container */}
-      <div ref={terminalRef} className="flex-1 p-1" />
+      <div ref={terminalRef} className="flex-1 min-h-0 overflow-hidden p-1 pb-4" />
     </div>
   );
 }

@@ -35,6 +35,7 @@ interface CodeBrowserStore {
   diffView: DiffViewState | null;
   dirtyFiles: Set<string>; // Track modified files
   isTerminalOpen: boolean;
+  terminalMounted: boolean; // Track if terminal component should be mounted
 
   // Actions
   toggleFolder: (path: string) => void;
@@ -81,6 +82,7 @@ export const useCodeBrowserStore = create<CodeBrowserStore>((set, get) => ({
   diffView: null,
   dirtyFiles: new Set(),
   isTerminalOpen: false,
+  terminalMounted: false,
 
   // Actions
   toggleFolder: (path) => {
@@ -229,11 +231,17 @@ export const useCodeBrowserStore = create<CodeBrowserStore>((set, get) => ({
   },
 
   toggleTerminal: () => {
-    set((state) => ({ isTerminalOpen: !state.isTerminalOpen }));
+    set((state) => ({
+      isTerminalOpen: !state.isTerminalOpen,
+      terminalMounted: state.terminalMounted || !state.isTerminalOpen, // Mount on first open
+    }));
   },
 
   setTerminalOpen: (open) => {
-    set({ isTerminalOpen: open });
+    set((state) => ({
+      isTerminalOpen: open,
+      terminalMounted: state.terminalMounted || open, // Mount on first open
+    }));
   },
 
   clearCache: () => {
@@ -247,6 +255,7 @@ export const useCodeBrowserStore = create<CodeBrowserStore>((set, get) => ({
       diffView: null,
       dirtyFiles: new Set(),
       isTerminalOpen: false,
+      terminalMounted: false,
     });
   },
 

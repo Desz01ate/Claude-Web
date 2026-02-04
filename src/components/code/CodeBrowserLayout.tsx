@@ -14,7 +14,7 @@ interface CodeBrowserLayoutProps {
 }
 
 export function CodeBrowserLayout({ rootPath, projectName }: CodeBrowserLayoutProps) {
-  const { isTerminalOpen, setTerminalOpen } = useCodeBrowserStore();
+  const { isTerminalOpen, terminalMounted, setTerminalOpen } = useCodeBrowserStore();
 
   // Refresh triggers - increment to trigger a refresh in child components
   const [fileTreeRefreshTrigger, setFileTreeRefreshTrigger] = useState(0);
@@ -46,22 +46,25 @@ export function CodeBrowserLayout({ rootPath, projectName }: CodeBrowserLayoutPr
         </div>
 
         {/* Code Viewer with Terminal */}
-        <div className="flex-1 min-w-0 flex flex-col">
+        <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
           {/* Code Viewer Area */}
           <div className={isTerminalOpen ? 'flex-1 min-h-0' : 'h-full'} style={isTerminalOpen ? { height: '70%' } : undefined}>
             <CodeViewer rootPath={rootPath} />
           </div>
 
-          {/* Terminal Panel */}
-          {isTerminalOpen && (
-            <div style={{ height: '30%' }} className="min-h-[150px]">
+          {/* Terminal Panel - hidden with CSS instead of unmounted to preserve session */}
+          <div
+            style={{ height: isTerminalOpen ? '30%' : '0' }}
+            className={isTerminalOpen ? 'min-h-[150px]' : 'h-0 overflow-hidden'}
+          >
+            {terminalMounted && (
               <WebTerminal
                 path={rootPath}
                 rootPath={rootPath}
                 onClose={() => setTerminalOpen(false)}
               />
-            </div>
-          )}
+            )}
+          </div>
         </div>
 
         {/* Git Panel */}
