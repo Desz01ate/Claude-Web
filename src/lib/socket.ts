@@ -129,3 +129,11 @@ export function deleteRecentSession(
 export function cycleSessionMode(sessionId: string): void {
   getSocket().emit('session:cycleMode', sessionId);
 }
+
+export function subscribeToFileWatch(rootPath: string): void {
+  getSocket().emit('filewatcher:subscribe', rootPath);
+}
+
+export function unsubscribeFromFileWatch(rootPath: string): void {
+  getSocket().emit('filewatcher:unsubscribe', rootPath);
+}

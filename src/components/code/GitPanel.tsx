@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { useCodeBrowserStore } from '@/stores/codeBrowserStore';
@@ -20,6 +20,7 @@ import {
 
 interface GitPanelProps {
   rootPath: string;
+  refreshTrigger?: number;
 }
 
 // Get Monaco language from file path
@@ -28,7 +29,7 @@ function getLanguage(filePath: string): string {
   return EXTENSION_LANGUAGE_MAP[ext] || 'plaintext';
 }
 
-export function GitPanel({ rootPath }: GitPanelProps) {
+export function GitPanel({ rootPath, refreshTrigger }: GitPanelProps) {
   const {
     gitStatus,
     setGitStatus,
@@ -59,6 +60,22 @@ export function GitPanel({ rootPath }: GitPanelProps) {
   useEffect(() => {
     loadGitStatus();
   }, [rootPath]);
+
+  // Track if this is the initial mount to avoid double-loading
+  const isInitialMount = useRef(true);
+
+  // Handle external refresh triggers (from file watcher git events)
+  useEffect(() => {
+    // Skip the initial mount (already handled by the above effect)
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
+
+    if (refreshTrigger !== undefined && refreshTrigger > 0) {
+      loadGitStatus();
+    }
+  }, [refreshTrigger]);
 
   const handleFileSelect = async (filePath: string) => {
     setSelectedDiffFile(filePath);

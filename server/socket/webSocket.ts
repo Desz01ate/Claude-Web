@@ -15,6 +15,8 @@ import type { TmuxSessionManager } from '../services/TmuxSessionManager';
 import type { ConfigStore } from '../services/ConfigStore';
 import type { SessionDatabase } from '../services/SessionDatabase';
 import type { AuthService } from '../services/AuthService';
+import type { FileWatcherService } from '../services/FileWatcherService';
+import type { FileWatcherChange } from '../../src/types';
 import { PromptSender } from '../services/PromptSender';
 
 export class WebSocketServer {
@@ -28,6 +30,7 @@ export class WebSocketServer {
   private configStore: ConfigStore | null = null;
   private sessionDb: SessionDatabase | null = null;
   private authService: AuthService | null = null;
+  private fileWatcher: FileWatcherService | null = null;
   private tmuxAvailable: boolean = false;
 
   constructor(io: Server<ClientToServerEvents, ServerToClientEvents>, sessionStore: SessionStore) {
@@ -61,6 +64,21 @@ export class WebSocketServer {
 
   setAuthService(authService: AuthService): void {
     this.authService = authService;
+  }
+
+  setFileWatcher(fileWatcher: FileWatcherService): void {
+    this.fileWatcher = fileWatcher;
+
+    // Listen for file watcher events and broadcast to clients
+    fileWatcher.on('files:changed', (rootPath: string, changes: FileWatcherChange[]) => {
+      console.log(`[WebSocket] Broadcasting file changes for ${rootPath}: ${changes.length} changes`);
+      this.io.emit('filewatcher:changed', { rootPath, changes });
+    });
+
+    fileWatcher.on('git:changed', (rootPath: string) => {
+      console.log(`[WebSocket] Broadcasting git change for ${rootPath}`);
+      this.io.emit('filewatcher:git', { rootPath });
+    });
   }
 
   setPermissionResponder(responder: (sessionId: string, toolUseId: string, decision: PermissionDecision) => boolean): void {
@@ -413,9 +431,28 @@ export class WebSocketServer {
         socket.emit('prompt:sent', sessionId, result.success, result.error);
       });
 
+      // Handle file watcher subscription
+      socket.on('filewatcher:subscribe', (rootPath: string) => {
+        console.log(`[WebSocket] ${socket.id} subscribing to file watch: ${rootPath}`);
+        if (this.fileWatcher) {
+          this.fileWatcher.subscribe(socket.id, rootPath);
+        }
+      });
+
+      socket.on('filewatcher:unsubscribe', (rootPath: string) => {
+        console.log(`[WebSocket] ${socket.id} unsubscribing from file watch: ${rootPath}`);
+        if (this.fileWatcher) {
+          this.fileWatcher.unsubscribe(socket.id, rootPath);
+        }
+      });
+
       socket.on('disconnect', () => {
         console.log(`[WebSocket] Client disconnected: ${socket.id}`);
         this.subscriptions.delete(socket.id);
+        // Cleanup file watcher subscriptions
+        if (this.fileWatcher) {
+          this.fileWatcher.cleanupSocket(socket.id);
+        }
       });
     });
   }

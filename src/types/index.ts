@@ -113,6 +113,21 @@ export type HookEventType =
   | 'ended';
 
 // WebSocket events
+// File watcher event types
+export interface FileWatcherChange {
+  path: string;
+  type: 'add' | 'change' | 'unlink' | 'addDir' | 'unlinkDir';
+}
+
+export interface FileWatcherChangedEvent {
+  rootPath: string;
+  changes: FileWatcherChange[];
+}
+
+export interface FileWatcherGitEvent {
+  rootPath: string;
+}
+
 export interface ServerToClientEvents {
   'session:update': (session: SessionState) => void;
   'session:ended': (sessionId: string) => void;
@@ -132,6 +147,9 @@ export interface ServerToClientEvents {
   'terminal:data': (data: { sessionId: string; data: string }) => void;
   'terminal:exit': (data: { sessionId: string }) => void;
   'terminal:error': (data: { error: string }) => void;
+  // File watcher events
+  'filewatcher:changed': (event: FileWatcherChangedEvent) => void;
+  'filewatcher:git': (event: FileWatcherGitEvent) => void;
 }
 
 export interface SessionCreateResult {
@@ -163,6 +181,9 @@ export interface ClientToServerEvents {
   // Terminal events
   'terminal:attach': (sessionId: string) => void;
   'terminal:input': (data: { sessionId: string; data: string }) => void;
+  // File watcher events
+  'filewatcher:subscribe': (rootPath: string) => void;
+  'filewatcher:unsubscribe': (rootPath: string) => void;
 }
 
 export type PermissionDecision = 'allow' | 'deny' | 'ask';

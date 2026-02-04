@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { useCodeBrowserStore } from '@/stores/codeBrowserStore';
@@ -11,15 +11,17 @@ import { Eye, EyeOff, RefreshCw, Loader2, AlertCircle, Terminal } from 'lucide-r
 
 interface FileTreeProps {
   rootPath: string;
+  refreshTrigger?: number;
 }
 
-export function FileTree({ rootPath }: FileTreeProps) {
+export function FileTree({ rootPath, refreshTrigger }: FileTreeProps) {
   const {
     getTreeCache,
     setTreeCache,
     showHiddenFiles,
     toggleHiddenFiles,
     clearCache,
+    invalidateTreeCache,
     toggleTerminal,
   } = useCodeBrowserStore();
 
@@ -66,6 +68,24 @@ export function FileTree({ rootPath }: FileTreeProps) {
   useEffect(() => {
     loadTree();
   }, [rootPath, showHiddenFiles]);
+
+  // Track if this is the initial mount to avoid double-loading
+  const isInitialMount = useRef(true);
+
+  // Handle external refresh triggers (e.g., from file watcher)
+  useEffect(() => {
+    // Skip the initial mount (already handled by the above effect)
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
+
+    if (refreshTrigger !== undefined && refreshTrigger > 0) {
+      // Only invalidate tree cache, not the entire state
+      invalidateTreeCache(rootPath);
+      loadTree(true);
+    }
+  }, [refreshTrigger]);
 
   const handleRefresh = () => {
     clearCache();

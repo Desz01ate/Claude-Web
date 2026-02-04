@@ -52,6 +52,7 @@ interface CodeBrowserStore {
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
   clearCache: () => void;
+  invalidateTreeCache: (rootPath?: string) => void;
   setViewMode: (mode: ViewMode) => void;
   setDiffView: (diffView: DiffViewState | null) => void;
   openFileDiff: (filePath: string, originalContent: string, modifiedContent: string, language: string) => void;
@@ -246,6 +247,24 @@ export const useCodeBrowserStore = create<CodeBrowserStore>((set, get) => ({
       diffView: null,
       dirtyFiles: new Set(),
       isTerminalOpen: false,
+    });
+  },
+
+  invalidateTreeCache: (rootPath) => {
+    set((state) => {
+      const newTreeCache = new Map(state.treeCache);
+      if (rootPath) {
+        // Clear only entries that start with the given rootPath
+        for (const key of newTreeCache.keys()) {
+          if (key === rootPath || key.startsWith(rootPath + '/')) {
+            newTreeCache.delete(key);
+          }
+        }
+      } else {
+        // Clear all tree cache
+        newTreeCache.clear();
+      }
+      return { treeCache: newTreeCache };
     });
   },
 

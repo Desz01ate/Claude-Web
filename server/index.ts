@@ -9,6 +9,7 @@ import { TmuxSessionManager } from './services/TmuxSessionManager';
 import { ConfigStore } from './services/ConfigStore';
 import { AuthService } from './services/AuthService';
 import { MCPStore } from './services/MCPStore';
+import { FileWatcherService } from './services/FileWatcherService';
 import { setupRoutes } from './routes/sessions';
 import { setupSetupRoutes } from './routes/setup';
 import { setupFilesystemRoutes } from './routes/filesystem';
@@ -52,14 +53,18 @@ const mcpStore = new MCPStore();
 // Tmux session manager
 const tmuxManager = new TmuxSessionManager(configStore);
 
+// File watcher service
+const fileWatcherService = new FileWatcherService();
+
 // WebSocket server for browser clients
 const webSocketServer = new WebSocketServer(io, sessionStore);
 
-// Wire up tmux manager, config store, and session database
+// Wire up tmux manager, config store, session database, and file watcher
 webSocketServer.setTmuxManager(tmuxManager);
 webSocketServer.setConfigStore(configStore);
 webSocketServer.setSessionDatabase(sessionDatabase);
 webSocketServer.setAuthService(authService);
+webSocketServer.setFileWatcher(fileWatcherService);
 
 // Unix socket server for Python hook
 const hookSocketServer = new HookSocketServer(sessionStore, webSocketServer);
@@ -106,6 +111,7 @@ process.on('SIGINT', () => {
   console.log('\n[Server] Shutting down...');
   hookSocketServer.stop();
   cleanupTerminalSessions();
+  fileWatcherService.closeAll();
   sessionDatabase.close();
   httpServer.close(() => {
     console.log('[Server] HTTP server closed');
@@ -116,6 +122,7 @@ process.on('SIGINT', () => {
 process.on('SIGTERM', () => {
   hookSocketServer.stop();
   cleanupTerminalSessions();
+  fileWatcherService.closeAll();
   sessionDatabase.close();
   httpServer.close();
   process.exit(0);

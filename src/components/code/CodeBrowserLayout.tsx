@@ -1,10 +1,12 @@
 'use client';
 
+import { useState, useCallback } from 'react';
 import { FileTree } from './FileTree';
 import { CodeViewer } from './CodeViewer';
 import { GitPanel } from './GitPanel';
 import { WebTerminal } from './WebTerminal';
 import { useCodeBrowserStore } from '@/stores/codeBrowserStore';
+import { useFileWatcher } from '@/hooks/useFileWatcher';
 
 interface CodeBrowserLayoutProps {
   rootPath: string;
@@ -14,13 +16,33 @@ interface CodeBrowserLayoutProps {
 export function CodeBrowserLayout({ rootPath, projectName }: CodeBrowserLayoutProps) {
   const { isTerminalOpen, setTerminalOpen } = useCodeBrowserStore();
 
+  // Refresh triggers - increment to trigger a refresh in child components
+  const [fileTreeRefreshTrigger, setFileTreeRefreshTrigger] = useState(0);
+  const [gitPanelRefreshTrigger, setGitPanelRefreshTrigger] = useState(0);
+
+  // Handle file watcher events
+  const handleFilesChanged = useCallback(() => {
+    setFileTreeRefreshTrigger((prev) => prev + 1);
+  }, []);
+
+  const handleGitChanged = useCallback(() => {
+    setGitPanelRefreshTrigger((prev) => prev + 1);
+  }, []);
+
+  // Subscribe to file watcher
+  useFileWatcher({
+    rootPath,
+    onFilesChanged: handleFilesChanged,
+    onGitChanged: handleGitChanged,
+  });
+
   return (
     <div className="h-full flex flex-col">
       {/* Content */}
       <div className="flex-1 flex min-h-0">
         {/* File Tree */}
         <div className="w-64 border-r flex-shrink-0">
-          <FileTree rootPath={rootPath} />
+          <FileTree rootPath={rootPath} refreshTrigger={fileTreeRefreshTrigger} />
         </div>
 
         {/* Code Viewer with Terminal */}
@@ -43,7 +65,7 @@ export function CodeBrowserLayout({ rootPath, projectName }: CodeBrowserLayoutPr
         </div>
 
         {/* Git Panel */}
-        <GitPanel rootPath={rootPath} />
+        <GitPanel rootPath={rootPath} refreshTrigger={gitPanelRefreshTrigger} />
       </div>
     </div>
   );
