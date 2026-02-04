@@ -16,6 +16,7 @@ import { setupConfigRoutes } from './routes/config';
 import { setupAuthRoutes } from './routes/auth';
 import { setupMCPRoutes } from './routes/mcp';
 import { setupCodeRoutes } from './routes/code';
+import { setupTerminalRoutes, setupTerminalWebSocket, cleanupTerminalSessions } from './routes/terminal';
 import type { ServerToClientEvents, ClientToServerEvents } from '../src/types';
 
 const app = express();
@@ -87,6 +88,8 @@ setupConfigRoutes(app, configStore);
 setupAuthRoutes(app, authService);
 setupMCPRoutes(app, mcpStore);
 setupCodeRoutes(app);
+setupTerminalRoutes(app);
+setupTerminalWebSocket(io);
 
 // Start servers
 const PORT = process.env.PORT || 3001;
@@ -102,6 +105,7 @@ hookSocketServer.start();
 process.on('SIGINT', () => {
   console.log('\n[Server] Shutting down...');
   hookSocketServer.stop();
+  cleanupTerminalSessions();
   sessionDatabase.close();
   httpServer.close(() => {
     console.log('[Server] HTTP server closed');
@@ -111,6 +115,7 @@ process.on('SIGINT', () => {
 
 process.on('SIGTERM', () => {
   hookSocketServer.stop();
+  cleanupTerminalSessions();
   sessionDatabase.close();
   httpServer.close();
   process.exit(0);

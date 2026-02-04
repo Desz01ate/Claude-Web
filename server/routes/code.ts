@@ -281,6 +281,57 @@ export function setupCodeRoutes(app: Express): void {
   });
 
   /**
+   * PUT /api/code/file
+   * Save file content
+   */
+  router.put('/code/file', async (req, res) => {
+    try {
+      const { path: filePath, rootPath, content } = req.body;
+
+      if (!filePath || !rootPath || content === undefined) {
+        res.status(400).json({ error: 'path, rootPath, and content are required' });
+        return;
+      }
+
+      // Validate path is within root
+      if (!isPathWithinRoot(filePath, rootPath)) {
+        res.status(403).json({ error: 'Access denied: path outside root directory' });
+        return;
+      }
+
+      // Check if file exists (don't allow creating new files through this endpoint)
+      if (!fs.existsSync(filePath)) {
+        res.status(404).json({ error: 'File does not exist' });
+        return;
+      }
+
+      const stats = fs.statSync(filePath);
+      if (!stats.isFile()) {
+        res.status(400).json({ error: 'Path is not a file' });
+        return;
+      }
+
+      // Don't allow saving binary files
+      if (isBinaryFile(filePath)) {
+        res.status(400).json({ error: 'Cannot save binary files' });
+        return;
+      }
+
+      // Write file content
+      await fs.promises.writeFile(filePath, content, 'utf-8');
+
+      res.json({
+        success: true,
+        path: filePath,
+      });
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      console.error(`[Code] File save error: ${errorMsg}`);
+      res.status(500).json({ error: errorMsg });
+    }
+  });
+
+  /**
    * GET /api/git/status
    * Get git status, branch name, and changed files
    */

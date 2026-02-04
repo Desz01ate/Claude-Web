@@ -4,10 +4,10 @@ import { useEffect, useState } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { useCodeBrowserStore } from '@/stores/codeBrowserStore';
-import { fetchDirectoryTree } from '@/lib/codeApi';
+import { fetchDirectoryTree, checkTerminalAvailable } from '@/lib/codeApi';
 import { FileTreeItem } from './FileTreeItem';
 import type { TreeEntry } from '@/types/code';
-import { Eye, EyeOff, RefreshCw, Loader2, AlertCircle } from 'lucide-react';
+import { Eye, EyeOff, RefreshCw, Loader2, AlertCircle, Terminal } from 'lucide-react';
 
 interface FileTreeProps {
   rootPath: string;
@@ -20,11 +20,24 @@ export function FileTree({ rootPath }: FileTreeProps) {
     showHiddenFiles,
     toggleHiddenFiles,
     clearCache,
+    toggleTerminal,
   } = useCodeBrowserStore();
 
   const [entries, setEntries] = useState<TreeEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [terminalAvailable, setTerminalAvailable] = useState<boolean | null>(null);
+
+  // Check terminal availability on mount
+  useEffect(() => {
+    checkTerminalAvailable()
+      .then((result) => {
+        setTerminalAvailable(result.available);
+      })
+      .catch(() => {
+        setTerminalAvailable(false);
+      });
+  }, []);
 
   const loadTree = async (forceRefresh = false) => {
     if (!forceRefresh) {
@@ -118,6 +131,21 @@ export function FileTree({ rootPath }: FileTreeProps) {
           </div>
         )}
       </ScrollArea>
+
+      {/* Fixed bottom terminal button */}
+      {terminalAvailable && (
+        <div className="border-t p-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full justify-start gap-2"
+            onClick={toggleTerminal}
+          >
+            <Terminal className="h-4 w-4" />
+            Terminal
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

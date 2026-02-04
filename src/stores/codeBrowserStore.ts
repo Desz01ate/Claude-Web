@@ -8,6 +8,7 @@ interface CachedFile {
   content: string;
   language: string;
   isBinary?: boolean;
+  originalContent?: string; // Original content for dirty tracking
 }
 
 interface DiffViewState {
@@ -32,6 +33,8 @@ interface CodeBrowserStore {
   error: string | null;
   viewMode: ViewMode;
   diffView: DiffViewState | null;
+  dirtyFiles: Set<string>; // Track modified files
+  isTerminalOpen: boolean;
 
   // Actions
   toggleFolder: (path: string) => void;
@@ -39,6 +42,8 @@ interface CodeBrowserStore {
   collapseFolder: (path: string) => void;
   selectFile: (path: string | null) => void;
   setFileContent: (path: string, content: CachedFile) => void;
+  updateFileContent: (path: string, content: string) => void; // Update content and track dirty
+  markFileClean: (path: string) => void; // Mark file as saved
   setTreeCache: (path: string, entries: TreeEntry[]) => void;
   setGitStatus: (status: GitStatusResponse | null) => void;
   toggleGitPanel: () => void;
@@ -50,11 +55,14 @@ interface CodeBrowserStore {
   setViewMode: (mode: ViewMode) => void;
   setDiffView: (diffView: DiffViewState | null) => void;
   openFileDiff: (filePath: string, originalContent: string, modifiedContent: string, language: string) => void;
+  toggleTerminal: () => void;
+  setTerminalOpen: (open: boolean) => void;
 
   // Getters
   isFolderExpanded: (path: string) => boolean;
   getFileContent: (path: string) => CachedFile | undefined;
   getTreeCache: (path: string) => TreeEntry[] | undefined;
+  isFileDirty: (path: string) => boolean;
 }
 
 export const useCodeBrowserStore = create<CodeBrowserStore>((set, get) => ({
@@ -70,6 +78,8 @@ export const useCodeBrowserStore = create<CodeBrowserStore>((set, get) => ({
   error: null,
   viewMode: 'code',
   diffView: null,
+  dirtyFiles: new Set(),
+  isTerminalOpen: false,
 
   // Actions
   toggleFolder: (path) => {
@@ -108,8 +118,53 @@ export const useCodeBrowserStore = create<CodeBrowserStore>((set, get) => ({
   setFileContent: (path, content) => {
     set((state) => {
       const newFileContent = new Map(state.fileContent);
-      newFileContent.set(path, content);
+      // Store original content for dirty tracking
+      newFileContent.set(path, {
+        ...content,
+        originalContent: content.content,
+      });
       return { fileContent: newFileContent };
+    });
+  },
+
+  updateFileContent: (path, content) => {
+    set((state) => {
+      const existing = state.fileContent.get(path);
+      if (!existing) return state;
+
+      const newFileContent = new Map(state.fileContent);
+      newFileContent.set(path, {
+        ...existing,
+        content,
+      });
+
+      // Track dirty state
+      const newDirtyFiles = new Set(state.dirtyFiles);
+      if (content !== existing.originalContent) {
+        newDirtyFiles.add(path);
+      } else {
+        newDirtyFiles.delete(path);
+      }
+
+      return { fileContent: newFileContent, dirtyFiles: newDirtyFiles };
+    });
+  },
+
+  markFileClean: (path) => {
+    set((state) => {
+      const existing = state.fileContent.get(path);
+      if (!existing) return state;
+
+      const newFileContent = new Map(state.fileContent);
+      newFileContent.set(path, {
+        ...existing,
+        originalContent: existing.content, // Update original to current
+      });
+
+      const newDirtyFiles = new Set(state.dirtyFiles);
+      newDirtyFiles.delete(path);
+
+      return { fileContent: newFileContent, dirtyFiles: newDirtyFiles };
     });
   },
 
@@ -172,6 +227,14 @@ export const useCodeBrowserStore = create<CodeBrowserStore>((set, get) => ({
     });
   },
 
+  toggleTerminal: () => {
+    set((state) => ({ isTerminalOpen: !state.isTerminalOpen }));
+  },
+
+  setTerminalOpen: (open) => {
+    set({ isTerminalOpen: open });
+  },
+
   clearCache: () => {
     set({
       expandedFolders: new Set(),
@@ -181,6 +244,8 @@ export const useCodeBrowserStore = create<CodeBrowserStore>((set, get) => ({
       gitStatus: null,
       viewMode: 'code',
       diffView: null,
+      dirtyFiles: new Set(),
+      isTerminalOpen: false,
     });
   },
 
@@ -195,5 +260,9 @@ export const useCodeBrowserStore = create<CodeBrowserStore>((set, get) => ({
 
   getTreeCache: (path) => {
     return get().treeCache.get(path);
+  },
+
+  isFileDirty: (path) => {
+    return get().dirtyFiles.has(path);
   },
 }));
