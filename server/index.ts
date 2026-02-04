@@ -15,6 +15,7 @@ import { setupFilesystemRoutes } from './routes/filesystem';
 import { setupConfigRoutes } from './routes/config';
 import { setupAuthRoutes } from './routes/auth';
 import { setupMCPRoutes } from './routes/mcp';
+import { setupCodeRoutes } from './routes/code';
 import type { ServerToClientEvents, ClientToServerEvents } from '../src/types';
 
 const app = express();
@@ -85,6 +86,7 @@ setupFilesystemRoutes(app);
 setupConfigRoutes(app, configStore);
 setupAuthRoutes(app, authService);
 setupMCPRoutes(app, mcpStore);
+setupCodeRoutes(app);
 
 // Start servers
 const PORT = process.env.PORT || 3001;

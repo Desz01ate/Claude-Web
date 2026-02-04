@@ -13,7 +13,7 @@ import { AuthGuard } from '@/components/auth/AuthGuard';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, FolderOpen, Terminal, Globe, ExternalLink, AlertCircle, Square, ToggleRight, Trash2, Minimize2 } from 'lucide-react';
+import { ArrowLeft, FolderOpen, Terminal, Globe, ExternalLink, AlertCircle, Square, ToggleRight, Trash2, Minimize2, Code } from 'lucide-react';
 import { useState, useEffect, useCallback } from 'react';
 import { useSessionStore, type ClaudeMode } from '@/stores/sessionStore';
 import { destroySession, cycleSessionMode as emitCycleMode, getSocket, sendPrompt } from '@/lib/socket';
@@ -331,6 +331,15 @@ function SessionDetailPageContent() {
                   >
                     <Minimize2 className="h-3 w-3" />
                     {isCompacting ? 'Compacting...' : 'Compact'}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => router.push(`/sessions/${session.sessionId}/code`)}
+                    className="w-full gap-1"
+                  >
+                    <Code className="h-3 w-3" />
+                    Browse Code
                   </Button>
                 </div>
               </CardContent>
