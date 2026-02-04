@@ -239,19 +239,30 @@ export class WebSocketServer {
           }
         }
 
-        // Create tmux session
-        const result = await this.tmuxManager.createSession(workingDirectory);
-        if (!result.success || !result.tmuxName) {
-          callback({ success: false, error: result.error || 'Failed to create session' });
+        // Step 1: Create tmux session (without starting Claude yet)
+        const prepareResult = await this.tmuxManager.prepareTmuxSession(workingDirectory);
+        if (!prepareResult.success || !prepareResult.tmuxName) {
+          callback({ success: false, error: prepareResult.error || 'Failed to create session' });
           return;
         }
 
-        // Register as pending managed session (will be correlated when hook event arrives)
-        this.sessionStore.registerPendingManagedSession(workingDirectory, result.tmuxName);
+        // Step 2: Register as pending managed session BEFORE starting Claude
+        // This prevents race condition where hook event arrives before registration
+        this.sessionStore.registerPendingManagedSession(workingDirectory, prepareResult.tmuxName);
+
+        // Step 3: Now start Claude in the tmux session
+        const startResult = await this.tmuxManager.startClaudeInSession(prepareResult.tmuxName);
+        if (!startResult.success) {
+          // Cleanup: remove pending registration and destroy tmux session
+          this.sessionStore.removePendingManagedSession(workingDirectory);
+          await this.tmuxManager.destroySession(prepareResult.tmuxName);
+          callback({ success: false, error: startResult.error || 'Failed to start Claude' });
+          return;
+        }
 
         // Return success with tmux name - the actual session ID will be emitted via session:created event
         // when the hook event fires
-        callback({ success: true, tmuxName: result.tmuxName });
+        callback({ success: true, tmuxName: prepareResult.tmuxName });
       });
 
       // Handle session resume
@@ -281,16 +292,26 @@ export class WebSocketServer {
           }
         }
 
-        // Resume the session via tmux
-        const result = await this.tmuxManager.resumeSession(sessionId, cwd);
-        if (!result.success || !result.tmuxName) {
-          callback({ success: false, error: result.error || 'Failed to resume session' });
+        // Step 1: Create tmux session (without starting Claude yet)
+        const prepareResult = await this.tmuxManager.prepareTmuxSession(cwd);
+        if (!prepareResult.success || !prepareResult.tmuxName) {
+          callback({ success: false, error: prepareResult.error || 'Failed to create session' });
           return;
         }
 
-        // Register as pending managed session (will be correlated when hook event arrives)
-        // The resumed session will use the same session ID
-        this.sessionStore.registerPendingManagedSession(cwd, result.tmuxName);
+        // Step 2: Register as pending managed session BEFORE starting Claude
+        // This prevents race condition where hook event arrives before registration
+        this.sessionStore.registerPendingManagedSession(cwd, prepareResult.tmuxName);
+
+        // Step 3: Now start Claude resume in the tmux session
+        const startResult = await this.tmuxManager.startClaudeResumeInSession(prepareResult.tmuxName, sessionId);
+        if (!startResult.success) {
+          // Cleanup: remove pending registration and destroy tmux session
+          this.sessionStore.removePendingManagedSession(cwd);
+          await this.tmuxManager.destroySession(prepareResult.tmuxName);
+          callback({ success: false, error: startResult.error || 'Failed to resume Claude session' });
+          return;
+        }
 
         // Return success - the session will appear when hook event fires
         callback({ success: true, sessionId });

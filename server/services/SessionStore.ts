@@ -42,6 +42,15 @@ export class SessionStore extends EventEmitter {
   }
 
   /**
+   * Remove a pending managed session (for cleanup on errors)
+   */
+  removePendingManagedSession(workingDirectory: string): void {
+    const normalizedPath = workingDirectory.replace(/\/+$/, '');
+    this.pendingManagedSessions.delete(normalizedPath);
+    console.log(`[SessionStore] Removed pending managed session at ${normalizedPath}`);
+  }
+
+  /**
    * Get the tmux session name for a managed session
    */
   getTmuxSessionName(sessionId: string): string | undefined {
@@ -118,6 +127,13 @@ export class SessionStore extends EventEmitter {
 
     // Check if this is a pending managed session (for new sessions or resumed sessions)
     const normalizedCwd = cwd.replace(/\/+$/, '');
+
+    // Debug logging for session correlation
+    if (event_type === 'session_start') {
+      console.log(`[SessionStore] Session start event - cwd: "${cwd}", normalized: "${normalizedCwd}"`);
+      console.log(`[SessionStore] Pending sessions keys: [${Array.from(this.pendingManagedSessions.keys()).join(', ')}]`);
+    }
+
     const pending = this.pendingManagedSessions.get(normalizedCwd);
     let pendingTmuxName: string | undefined;
 
@@ -131,8 +147,12 @@ export class SessionStore extends EventEmitter {
         console.log(`[SessionStore] Correlated managed session: ${session_id} -> ${pendingTmuxName}`);
       } else {
         // Too old, remove stale pending
+        console.log(`[SessionStore] Pending session expired (${timeSinceCreation}ms > 30000ms): ${pending.tmuxName}`);
         this.pendingManagedSessions.delete(normalizedCwd);
       }
+    } else if (event_type === 'session_start' && this.pendingManagedSessions.size > 0) {
+      // Log mismatch for debugging
+      console.log(`[SessionStore] No pending session match for cwd "${normalizedCwd}"`);
     }
 
     // Create session if it doesn't exist

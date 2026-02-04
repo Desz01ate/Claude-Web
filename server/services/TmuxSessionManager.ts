@@ -49,57 +49,49 @@ export class TmuxSessionManager {
   }
 
   /**
-   * Resume a previous Claude session in a new tmux session
+   * Start Claude resume in an existing tmux session
    */
-  async resumeSession(sessionId: string, workingDirectory: string): Promise<TmuxCreateResult> {
-    // Verify tmux is available
-    if (!(await this.checkTmuxAvailable())) {
-      return { success: false, error: 'tmux is not installed or not in PATH' };
-    }
-
-    // Generate unique tmux session name
-    const tmuxId = uuidv4().slice(0, 8);
-    const tmuxName = `${TmuxSessionManager.SESSION_PREFIX}${tmuxId}`;
-
+  async startClaudeResumeInSession(tmuxName: string, claudeSessionId: string): Promise<TmuxResult> {
     try {
-      // Verify directory exists
-      const { stdout: dirCheck } = await execAsync(`test -d "${workingDirectory}" && echo "exists"`);
-      if (!dirCheck.trim()) {
-        return { success: false, error: `Directory does not exist: ${workingDirectory}` };
-      }
-
-      // Create tmux session with a shell first (session stays alive even if command fails)
-      // Then send the claude --resume command to it
-      const createCommand = `tmux new-session -d -s "${tmuxName}" -c "${workingDirectory}"`;
-      console.log(`[TmuxSessionManager] Creating session for resume: ${createCommand}`);
-
-      await execAsync(createCommand);
-
-      // Verify the session was created
-      const running = await this.isSessionRunning(tmuxName);
-      if (!running) {
-        return { success: false, error: 'Session was created but is not running' };
-      }
-
-      // Now send the claude --resume command
       const claudeCmd = this.getClaudeCommand();
-      const resumeCommand = `tmux send-keys -t "${tmuxName}" "${claudeCmd} --resume ${sessionId}" Enter`;
+      const resumeCommand = `tmux send-keys -t "${tmuxName}" "${claudeCmd} --resume ${claudeSessionId}" Enter`;
       console.log(`[TmuxSessionManager] Sending resume command: ${resumeCommand}`);
       await execAsync(resumeCommand);
 
-      console.log(`[TmuxSessionManager] Resumed session: ${tmuxName} (claude session: ${sessionId})`);
-      return { success: true, tmuxName };
+      console.log(`[TmuxSessionManager] Started Claude resume in session: ${tmuxName} (claude session: ${claudeSessionId})`);
+      return { success: true };
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : String(err);
-      console.error(`[TmuxSessionManager] Failed to resume session: ${errorMsg}`);
+      console.error(`[TmuxSessionManager] Failed to start Claude resume: ${errorMsg}`);
       return { success: false, error: errorMsg };
     }
   }
 
   /**
-   * Create a new tmux session running Claude Code
+   * Resume a previous Claude session in a new tmux session
+   * (Legacy method - combines prepareTmuxSession + startClaudeResumeInSession)
    */
-  async createSession(workingDirectory: string): Promise<TmuxCreateResult> {
+  async resumeSession(sessionId: string, workingDirectory: string): Promise<TmuxCreateResult> {
+    const result = await this.prepareTmuxSession(workingDirectory);
+    if (!result.success || !result.tmuxName) {
+      return result;
+    }
+
+    const startResult = await this.startClaudeResumeInSession(result.tmuxName, sessionId);
+    if (!startResult.success) {
+      // Cleanup the created tmux session
+      await this.destroySession(result.tmuxName);
+      return { success: false, error: startResult.error };
+    }
+
+    return { success: true, tmuxName: result.tmuxName };
+  }
+
+  /**
+   * Create a tmux session (without starting Claude yet)
+   * Use startClaudeInSession() after registering the pending session
+   */
+  async prepareTmuxSession(workingDirectory: string): Promise<TmuxCreateResult> {
     // Verify tmux is available
     if (!(await this.checkTmuxAvailable())) {
       return { success: false, error: 'tmux is not installed or not in PATH' };
@@ -117,12 +109,11 @@ export class TmuxSessionManager {
       }
 
       // Create tmux session with a shell first (session stays alive even if command fails)
-      // Then send the claude command to it
       // -d: detached
       // -s: session name
       // -c: starting directory
       const createCommand = `tmux new-session -d -s "${tmuxName}" -c "${workingDirectory}"`;
-      console.log(`[TmuxSessionManager] Creating session: ${createCommand}`);
+      console.log(`[TmuxSessionManager] Creating tmux session: ${createCommand}`);
 
       await execAsync(createCommand);
 
@@ -132,7 +123,21 @@ export class TmuxSessionManager {
         return { success: false, error: 'Session was created but is not running' };
       }
 
-      // Now send the claude command
+      console.log(`[TmuxSessionManager] Prepared tmux session: ${tmuxName}`);
+      return { success: true, tmuxName };
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      console.error(`[TmuxSessionManager] Failed to prepare tmux session: ${errorMsg}`);
+      return { success: false, error: errorMsg };
+    }
+  }
+
+  /**
+   * Start Claude in an existing tmux session
+   */
+  async startClaudeInSession(tmuxName: string): Promise<TmuxResult> {
+    try {
+      // Send the claude command
       const claudeCmd = this.getClaudeCommand();
       const claudeCommand = `tmux send-keys -t "${tmuxName}" "${claudeCmd}" Enter`;
       console.log(`[TmuxSessionManager] Sending claude command: ${claudeCommand}`);
@@ -145,14 +150,33 @@ export class TmuxSessionManager {
       console.log(`[TmuxSessionManager] Sending enter command: ${enterCommand}`);
       await exec(enterCommand);
 
-
-      console.log(`[TmuxSessionManager] Created session: ${tmuxName}`);
-      return { success: true, tmuxName };
+      console.log(`[TmuxSessionManager] Started Claude in session: ${tmuxName}`);
+      return { success: true };
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : String(err);
-      console.error(`[TmuxSessionManager] Failed to create session: ${errorMsg}`);
+      console.error(`[TmuxSessionManager] Failed to start Claude in session: ${errorMsg}`);
       return { success: false, error: errorMsg };
     }
+  }
+
+  /**
+   * Create a new tmux session running Claude Code
+   * (Legacy method - combines prepareTmuxSession + startClaudeInSession)
+   */
+  async createSession(workingDirectory: string): Promise<TmuxCreateResult> {
+    const result = await this.prepareTmuxSession(workingDirectory);
+    if (!result.success || !result.tmuxName) {
+      return result;
+    }
+
+    const startResult = await this.startClaudeInSession(result.tmuxName);
+    if (!startResult.success) {
+      // Cleanup the created tmux session
+      await this.destroySession(result.tmuxName);
+      return { success: false, error: startResult.error };
+    }
+
+    return { success: true, tmuxName: result.tmuxName };
   }
 
   /**
