@@ -1,12 +1,13 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import { useCodeBrowserStore } from '@/stores/codeBrowserStore';
 import { useThemeStore } from '@/stores/themeStore';
-import { fetchFileContent } from '@/lib/codeApi';
+import { fetchFileContent, saveFileContent } from '@/lib/codeApi';
 import { Button } from '@/components/ui/button';
-import { Loader2, AlertCircle, FileWarning, Code, GitCompare } from 'lucide-react';
+import { Loader2, AlertCircle, FileWarning, Code, GitCompare, Save, Circle } from 'lucide-react';
+import type { editor } from 'monaco-editor';
 
 // Dynamically import Monaco Editor to avoid SSR issues
 const MonacoEditor = dynamic(
@@ -52,6 +53,9 @@ export function CodeViewer({ rootPath }: CodeViewerProps) {
     selectedFile,
     getFileContent,
     setFileContent,
+    updateFileContent,
+    markFileClean,
+    isFileDirty,
     viewMode,
     setViewMode,
     diffView,
@@ -60,12 +64,61 @@ export function CodeViewer({ rootPath }: CodeViewerProps) {
   const resolvedTheme = getResolvedTheme(theme);
 
   const [isLoading, setIsLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
 
   const cachedContent = selectedFile ? getFileContent(selectedFile) : undefined;
+  const isDirty = selectedFile ? isFileDirty(selectedFile) : false;
 
   // Check if current file has a diff available
   const hasDiff = diffView && diffView.filePath === selectedFile;
+
+  // Handle saving file
+  const handleSave = useCallback(async () => {
+    if (!selectedFile || isSaving) return;
+
+    // Get the latest content directly from the store at execution time
+    // This avoids stale closure issues where cachedContent might be outdated
+    const currentContent = useCodeBrowserStore.getState().fileContent.get(selectedFile);
+    if (!currentContent) return;
+
+    setIsSaving(true);
+    setSaveError(null);
+
+    try {
+      await saveFileContent(selectedFile, rootPath, currentContent.content);
+      markFileClean(selectedFile);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to save file';
+      setSaveError(message);
+    } finally {
+      setIsSaving(false);
+    }
+  }, [selectedFile, rootPath, isSaving, markFileClean]);
+
+  // Handle editor change
+  const handleEditorChange = useCallback((value: string | undefined) => {
+    if (selectedFile && value !== undefined) {
+      updateFileContent(selectedFile, value);
+      setSaveError(null);
+    }
+  }, [selectedFile, updateFileContent]);
+
+  // Handle editor mount for keyboard shortcuts
+  const handleEditorMount = useCallback((editor: editor.IStandaloneCodeEditor) => {
+    editorRef.current = editor;
+
+    // Add Ctrl+S / Cmd+S save shortcut
+    editor.addCommand(
+      // Monaco uses KeyMod.CtrlCmd for Ctrl on Windows/Linux and Cmd on Mac
+      2048 /* KeyMod.CtrlCmd */ | 49 /* KeyCode.KeyS */,
+      () => {
+        handleSave();
+      }
+    );
+  }, [handleSave]);
 
   useEffect(() => {
     if (!selectedFile) return;
@@ -188,20 +241,46 @@ export function CodeViewer({ rootPath }: CodeViewerProps) {
   return (
     <div className="h-full flex flex-col">
       <div className="px-3 py-2 border-b bg-muted/50 flex items-center justify-between">
-        <span className="text-sm font-mono truncate" title={selectedFile}>
-          {filename}
-        </span>
-        {hasDiff && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setViewMode('diff')}
-            className="h-7 gap-1"
-          >
-            <GitCompare className="h-3 w-3" />
-            View Diff
-          </Button>
-        )}
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="text-sm font-mono truncate" title={selectedFile}>
+            {filename}
+          </span>
+          {isDirty && (
+            <Circle className="h-2 w-2 fill-orange-500 text-orange-500 flex-shrink-0" />
+          )}
+        </div>
+        <div className="flex items-center gap-1">
+          {saveError && (
+            <span className="text-xs text-destructive mr-2">{saveError}</span>
+          )}
+          {isDirty && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleSave}
+              disabled={isSaving}
+              className="h-7 gap-1"
+            >
+              {isSaving ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : (
+                <Save className="h-3 w-3" />
+              )}
+              Save
+            </Button>
+          )}
+          {hasDiff && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setViewMode('diff')}
+              className="h-7 gap-1"
+            >
+              <GitCompare className="h-3 w-3" />
+              View Diff
+            </Button>
+          )}
+        </div>
       </div>
       <div className="flex-1 min-h-0">
         {cachedContent && (
@@ -210,8 +289,9 @@ export function CodeViewer({ rootPath }: CodeViewerProps) {
             language={cachedContent.language}
             value={cachedContent.content}
             theme={resolvedTheme === 'dark' ? 'vs-dark' : 'light'}
+            onChange={handleEditorChange}
+            onMount={handleEditorMount}
             options={{
-              readOnly: true,
               minimap: { enabled: true },
               lineNumbers: 'on',
               automaticLayout: true,

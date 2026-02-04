@@ -3,6 +3,8 @@
 import { FileTree } from './FileTree';
 import { CodeViewer } from './CodeViewer';
 import { GitPanel } from './GitPanel';
+import { WebTerminal } from './WebTerminal';
+import { useCodeBrowserStore } from '@/stores/codeBrowserStore';
 
 interface CodeBrowserLayoutProps {
   rootPath: string;
@@ -10,6 +12,8 @@ interface CodeBrowserLayoutProps {
 }
 
 export function CodeBrowserLayout({ rootPath, projectName }: CodeBrowserLayoutProps) {
+  const { isTerminalOpen, setTerminalOpen } = useCodeBrowserStore();
+
   return (
     <div className="h-full flex flex-col">
       {/* Content */}
@@ -19,9 +23,23 @@ export function CodeBrowserLayout({ rootPath, projectName }: CodeBrowserLayoutPr
           <FileTree rootPath={rootPath} />
         </div>
 
-        {/* Code Viewer */}
-        <div className="flex-1 min-w-0">
-          <CodeViewer rootPath={rootPath} />
+        {/* Code Viewer with Terminal */}
+        <div className="flex-1 min-w-0 flex flex-col">
+          {/* Code Viewer Area */}
+          <div className={isTerminalOpen ? 'flex-1 min-h-0' : 'h-full'} style={isTerminalOpen ? { height: '70%' } : undefined}>
+            <CodeViewer rootPath={rootPath} />
+          </div>
+
+          {/* Terminal Panel */}
+          {isTerminalOpen && (
+            <div style={{ height: '30%' }} className="min-h-[150px]">
+              <WebTerminal
+                path={rootPath}
+                rootPath={rootPath}
+                onClose={() => setTerminalOpen(false)}
+              />
+            </div>
+          )}
         </div>
 
         {/* Git Panel */}

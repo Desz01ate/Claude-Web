@@ -128,6 +128,10 @@ export interface ServerToClientEvents {
   'session:cycleMode:result': (sessionId: string, success: boolean, error?: string) => void;
   'session:modeReset': (sessionId: string) => void;
   'tmux:available': (available: boolean) => void;
+  // Terminal events
+  'terminal:data': (data: { sessionId: string; data: string }) => void;
+  'terminal:exit': (data: { sessionId: string }) => void;
+  'terminal:error': (data: { error: string }) => void;
 }
 
 export interface SessionCreateResult {
@@ -156,6 +160,9 @@ export interface ClientToServerEvents {
   'sessions:list': () => void;
   'sessions:recent': () => void;
   'prompt:send': (sessionId: string, prompt: string) => void;
+  // Terminal events
+  'terminal:attach': (sessionId: string) => void;
+  'terminal:input': (data: { sessionId: string; data: string }) => void;
 }
 
 export type PermissionDecision = 'allow' | 'deny' | 'ask';

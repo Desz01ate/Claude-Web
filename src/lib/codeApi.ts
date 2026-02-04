@@ -110,6 +110,30 @@ export async function fetchGitDiff(
 }
 
 /**
+ * Save file content to the server
+ */
+export async function saveFileContent(
+  path: string,
+  rootPath: string,
+  content: string
+): Promise<{ success: boolean; path: string }> {
+  const response = await fetch(`${getApiBase()}/api/code/file`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ path, rootPath, content }),
+  });
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to save file');
+  }
+
+  return data;
+}
+
+/**
  * Fetch file content from a git ref (default: HEAD)
  */
 export async function fetchGitFileContent(
@@ -124,6 +148,87 @@ export async function fetchGitFileContent(
 
   if (!response.ok) {
     throw new Error(data.error || 'Failed to fetch git file content');
+  }
+
+  return data;
+}
+
+/**
+ * Check if terminal feature is available on the server
+ */
+export async function checkTerminalAvailable(): Promise<{ available: boolean; reason?: string }> {
+  const response = await fetch(`${getApiBase()}/api/terminal/available`);
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to check terminal availability');
+  }
+
+  return data;
+}
+
+/**
+ * Create a new terminal session
+ */
+export async function createTerminalSession(
+  path: string,
+  rootPath: string
+): Promise<{ success: boolean; sessionId?: string; path?: string; error?: string }> {
+  const response = await fetch(`${getApiBase()}/api/terminal/create`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ path, rootPath }),
+  });
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to create terminal session');
+  }
+
+  return data;
+}
+
+/**
+ * Resize a terminal session
+ */
+export async function resizeTerminal(
+  sessionId: string,
+  cols: number,
+  rows: number
+): Promise<{ success: boolean }> {
+  const response = await fetch(`${getApiBase()}/api/terminal/resize`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ sessionId, cols, rows }),
+  });
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to resize terminal');
+  }
+
+  return data;
+}
+
+/**
+ * Close a terminal session
+ */
+export async function closeTerminalSession(sessionId: string): Promise<{ success: boolean }> {
+  const response = await fetch(`${getApiBase()}/api/terminal/close`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ sessionId }),
+  });
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to close terminal session');
   }
 
   return data;

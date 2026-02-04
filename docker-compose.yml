@@ -29,6 +29,8 @@ services:
       # Terminal settings for Claude Code
       - TERM=xterm-256color
       - COLORTERM=truecolor
+      # Disable "Open Terminal" feature (no GUI in container)
+      - TERMINAL_DISABLED=false
     # Enable interactive terminal for Claude sessions
     stdin_open: true
     tty: true
